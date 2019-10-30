@@ -1,12 +1,11 @@
 const config = {
     type: Phaser.AUTO,
-    width: 800,
-    height: 400,
-    scene: {
-        preload: preload,
-        create: create,
-        update: update
+    audio: {
+        disableWebAudio: true
     },
+    width: 800,
+    height: 600,
+    scene: [menu, shop, p1Level, boss1, p2Level, fBoss],
     scale: {
         mode: Phaser.Scale.NONE,
         autoCenter: Phaser.Scale.CENTER_HORIZONTALLY
@@ -14,14 +13,3 @@ const config = {
 };
 
 var game = new Phaser.Game(config);
-
-function preload() {
-    this.load.image('c1', 'assets/textures/character1.png');
-}
-
-function create() {
-    this.add.image(15, 25, 'c1');
-}
-
-function update() {
-}
