@@ -1,15 +1,25 @@
 const config = {
+    title: 'BulletsNdGuns',
     type: Phaser.AUTO,
-    audio: {
-        disableWebAudio: true
-    },
     width: 800,
     height: 600,
-    scene: [menu, shop, p1Level, boss1, p2Level, fBoss],
     scale: {
         mode: Phaser.Scale.NONE,
         autoCenter: Phaser.Scale.CENTER_HORIZONTALLY
-    }
+    },
+    audio: {
+        disableWebAudio: true
+    },
+    physics: {
+        default: 'arcade',
+        arcade: {
+            gravity: {
+                y: 300
+            },
+            debug: true
+        }
+    },
+    scene: [menu, p1Level, p2Level, fBoss]
 };
 
 var game = new Phaser.Game(config);

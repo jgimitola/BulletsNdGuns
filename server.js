@@ -29,20 +29,17 @@ var jugadores = [];
 
 //Funciones variadas.
 
-function eliminarJugador(id) {
-    jugadores.splice(jugadores.indexOf(id), 1);
+function eliminarJugador(socket) {
+    jugadores.splice(jugadores.indexOf(socket), 1);
 }
 
 //Respondemos a las peticiones (POR HACER).
 
 io.on('connection', function (socket) {
-    jugadores.push(socket.id);
+    jugadores.push(socket);
     console.log('Nuevo jugador: ' + socket.id);
     socket.on('disconnect', function () {
-        eliminarJugador(socket.id);
+        eliminarJugador(socket);
         console.log('Jugador desconectado: ' + socket.id);
     });
 });
-
-
-
