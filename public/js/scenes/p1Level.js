@@ -11,6 +11,10 @@ class p1Level extends Phaser.Scene {
             frameWidth: 27,
             frameHeight: 23
         });
+        this.load.spritesheet('enemigo', './assets/textures/enemigoSpriteSheet.png', {
+            frameWidth: 32,
+            frameHeight: 32
+        });
         this.load.image('bala', './assets/textures/bala.png');
         this.load.image('moneda', './assets/textures/moneda.png');
         this.load.image('portal', './assets/textures/portal.png');
@@ -85,7 +89,14 @@ class p1Level extends Phaser.Scene {
         this.portal = this.physics.add.image(704, 60, 'portal');
         this.portal.body.setAllowGravity(false);
         this.portal.body.setSize(this.portal.width - 20, this.portal.height);
+        //Creamos enemigos.
+        this.enemigos = this.physics.add.group({
+            allowGravity: true,
+            immovable: true
+        });
+
         //Colision jugador con monedas o balas (Coleccionables).
+        this.physics.add.collider(this.jugador, this.enemigos, this.quitarEnemigos, null, this);
         this.physics.add.collider(this.jugador, this.monedas, this.aumentarPuntos, null, this);
         this.physics.add.collider(this.jugador, this.balas, this.aumentarBalas, null, this);
 
@@ -97,11 +108,24 @@ class p1Level extends Phaser.Scene {
         });
     }
 
+    addEnemigo(x, y, bX) {
+        const en = this.enemigos.create(x, y - 16, 'enemigo');
+        en.setCollideWorldBounds(true, bX, 0);
+    }
+
     removerBalas() {
 
     }
 
     removerMonedas() {
+
+    }
+
+    removerEnemigo() {
+
+    }
+
+    quitarEnemigos() {
 
     }
 
