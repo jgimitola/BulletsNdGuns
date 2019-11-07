@@ -19,7 +19,9 @@ const config = {
             debug: true
         }
     },
-    scene: [menu, p1Level, p2Level, fBoss]
+    scene: [menu, p1Level, p2Level, fBoss],
+    pixelArt: true,
+    antialias: true
 };
 
 var game = new Phaser.Game(config);

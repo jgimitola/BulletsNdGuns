@@ -22,10 +22,11 @@ app.get('*', function (req, res) {
 console.log("Servidor Iniciado....");
 
 http.listen(port, () => {
-    console.log("Escuchando en puerto " + port + " ...");
+    console.log('Escuchano en' + port);
 });
 
 var jugadores = [];
+var jugadoresListos = 0;
 
 //Funciones variadas.
 
@@ -37,9 +38,11 @@ function eliminarJugador(socket) {
 
 io.on('connection', function (socket) {
     jugadores.push(socket);
+    io.emit('actNumJugadores', jugadores.length);
     console.log('Nuevo jugador: ' + socket.id);
     socket.on('disconnect', function () {
         eliminarJugador(socket);
+        io.emit('actNumJugadores', jugadores.length);
         console.log('Jugador desconectado: ' + socket.id);
     });
 });

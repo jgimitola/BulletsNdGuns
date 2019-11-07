@@ -38,7 +38,11 @@ class menu extends Phaser.Scene {
             jugarB.setPosition(400, 272);
         });
         jugarBH.on('pointerdown', () => {
+            //if (numJugadores > 1) {
+            //  if (condition) {
             this.scene.start('p1L');
+            //}
+            //}
         });
         //Botón ¿Cómo jugar? y sus eventos.
         let cjugarB = this.add.image(400, 357, 'comoJBoton');
