@@ -2,6 +2,8 @@ class p1Level extends Phaser.Scene {
 
     constructor() {
         super("p1L");
+        this.velX = 270;
+        this.velY = -1000;
         this.contBalas = 5;
         this.contMonedas = 0;
     }
@@ -97,8 +99,11 @@ class p1Level extends Phaser.Scene {
 
         //Colision jugador con monedas o balas (Coleccionables).
         this.physics.add.collider(this.jugador, this.enemigos, this.quitarEnemigos, null, this);
-        this.physics.add.collider(this.jugador, this.monedas, this.aumentarPuntos, null, this);
-        this.physics.add.collider(this.jugador, this.balas, this.aumentarBalas, null, this);
+        this.physics.add.overlap(this.jugador, this.monedas, this.aumentarPuntos, null, this);
+        this.physics.add.overlap(this.jugador, this.balas, this.aumentarBalas, null, this);
+        this.physics.add.overlap(this.jugador, this.portal, () => {
+            this.scene.start('p2L');
+        }, null, this)
 
         //Creamos controles.
         this.controles = this.input.keyboard.addKeys({
@@ -163,7 +168,7 @@ class p1Level extends Phaser.Scene {
         }
         //Movemos al jugador.        
         if (this.controles.A.isDown) {
-            this.jugador.setVelocityX(-200);
+            this.jugador.setVelocityX(this.velX * -1);
             if (this.jugador.body.onFloor()) {
                 this.jugador.play('correr', true);
             } else {
@@ -175,7 +180,7 @@ class p1Level extends Phaser.Scene {
             }
             this.jugador.flipX = true;
         } else if (this.controles.D.isDown) {
-            this.jugador.setVelocityX(200);
+            this.jugador.setVelocityX(this.velX);
             if (this.jugador.body.onFloor()) {
                 this.jugador.play('correr', true);
             } else {
@@ -199,7 +204,7 @@ class p1Level extends Phaser.Scene {
             }
         }
         if (this.controles.W.isDown && this.jugador.body.onFloor()) {
-            this.jugador.setVelocityY(-235);
+            this.jugador.setVelocityY(this.velY);
             this.jugador.play('brincar', true);
         }
     }
