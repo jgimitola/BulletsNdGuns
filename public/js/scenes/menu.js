@@ -1,16 +1,7 @@
 class menu extends Phaser.Scene {
+
     constructor() {
         super("menu");
-    }
-    preload() {
-        this.load.audio('hoverB', '../assets/sounds/hoverButton.ogg');
-        this.load.image('titulo', '../assets/textures/titulo.png');
-        this.load.image('popUp', '../assets/textures/popUpComoJugar.png');
-        this.load.image('fondo', '../assets/textures/fondo.png');
-        this.load.image('jugarBoton', '../assets/textures/jugarBoton.png');
-        this.load.image('jugarBotonHover', '../assets/textures/jugarBoton_Hover.png');
-        this.load.image('comoJBoton', '../assets/textures/comojugarBoton.png');
-        this.load.image('comoJBotonHover', '../assets/textures/comojugarBoton_Hover.png');
     }
 
     create() {

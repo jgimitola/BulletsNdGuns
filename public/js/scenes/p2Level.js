@@ -3,63 +3,37 @@ class p2Level extends Phaser.Scene {
         super("p2L");
         this.velX = 270;
         this.velY = -1000;
+    }
+
+    create() {
+        //Contadores.
         this.contBalas = 2;
         this.contMonedas = 0;
-    }
-    preload() {
-        this.load.tilemapTiledJSON('map2', './assets/tilemaps/p2Level.json');
-    }
-    create() {
         //Scores de balas y monedas.
         this.textBalas = this.add.text(2, 0, 'Munición: ' + this.contBalas);
-        this.textMonedas = this.add.text(2, 16, 'Monedas: ' + this.contMonedas);
+        this.textMonedas = this.add.text(2, 12, 'Monedas: ' + this.contMonedas);
+        //Fondo.
         this.cameras.main.setBackgroundColor('rgba(250, 143, 67)');
-
         //Añadimos al jugador.
-        this.jugador = this.physics.add.sprite(64, 540, 'jugador');
-        this.anims.create({
-            key: "quieto",
-            frames: this.anims.generateFrameNumbers('jugador', { start: 7, end: 7 }),
-            frameRate: 1,
-            repeat: 0
-        });
-        this.anims.create({
-            key: "correr",
-            frames: this.anims.generateFrameNumbers('jugador', { start: 0, end: 5 }),
-            frameRate: 6,
-            repeat: 1
-        });
-        this.anims.create({
-            key: "brincar",
-            frames: this.anims.generateFrameNumbers('jugador', { start: 9, end: 9 }),
-            frameRate: 1,
-            repeat: 0
-        });
-        this.anims.create({
-            key: "caer",
-            frames: this.anims.generateFrameNumbers('jugador', { start: 10, end: 10 }),
-            frameRate: 1,
-            repeat: 0
-        });
+        this.jugador = this.physics.add.sprite(96, 544, 'jugador');
         this.jugador.setScale(2.3, 2.3);
         this.jugador.body.setSize(12, 15).setOffset(2, 8);
         this.jugador.setCollideWorldBounds(true);
-
         //Cargamos el mapa.
-        const mapa2 = this.make.tilemap({
+        this.mapa = this.make.tilemap({
             key: 'map2'
         });
-        const tileset2 = mapa2.addTilesetImage('p1LevelTS', 'tiles');
-        const platforms2 = mapa2.createStaticLayer('Plataformas', tileset2, 0, 0)
-        platforms2.setCollisionByExclusion(-1, true);
-        this.physics.add.collider(this.jugador, platforms2);
+        this.tileset = this.mapa.addTilesetImage('p1LevelTS', 'tiles');
+        this.platforms = this.mapa.createStaticLayer('Plataformas', this.tileset, 0, 0)
+        this.platforms.setCollisionByExclusion(-1, true);
+        this.physics.add.collider(this.jugador, this.platforms);
         //Creamos balas.
         this.balas = this.physics.add.group({
             allowGravity: false,
             immovable: true
         });
-        const balasObjects2 = mapa2.getObjectLayer('Balas')['objects'];
-        balasObjects2.forEach(balaObject => {
+        this.balasObjects = this.mapa.getObjectLayer('Balas')['objects'];
+        this.balasObjects.forEach(balaObject => {
             const bala = this.balas.create(balaObject.x, balaObject.y - balaObject.height, 'bala').setOrigin(0, 0);
             bala.body.setSize(bala.width - 20, bala.height);
         });
@@ -68,8 +42,8 @@ class p2Level extends Phaser.Scene {
             allowGravity: false,
             immovable: true
         });
-        const monedasObjects2 = mapa2.getObjectLayer('Monedas')['objects'];
-        monedasObjects2.forEach(monedaObject => {
+        this.monedasObjects = this.mapa.getObjectLayer('Monedas')['objects'];
+        this.monedasObjects.forEach(monedaObject => {
             const moneda = this.monedas.create(monedaObject.x, monedaObject.y - monedaObject.height, 'moneda').setOrigin(0, 0);
             moneda.body.setSize(moneda.width - 7, moneda.height - 7);
         });
@@ -78,11 +52,11 @@ class p2Level extends Phaser.Scene {
         this.portal.body.setAllowGravity(false);
         this.portal.body.setSize(this.portal.width - 20, this.portal.height);
 
-        this.physics.add.collider(this.jugador, this.enemigos, this.quitarEnemigos, null, this);
+        //Colision jugador con monedas o balas (Coleccionables).
         this.physics.add.overlap(this.jugador, this.monedas, this.aumentarPuntos, null, this);
         this.physics.add.overlap(this.jugador, this.balas, this.aumentarBalas, null, this);
         this.physics.add.overlap(this.jugador, this.portal, () => {
-            this.scene.start('p2L');
+            this.scene.start('fB');
         }, null, this)
 
         this.controles = this.input.keyboard.addKeys({
@@ -90,27 +64,6 @@ class p2Level extends Phaser.Scene {
             A: Phaser.Input.Keyboard.KeyCodes.A,
             D: Phaser.Input.Keyboard.KeyCodes.D
         });
-    }
-
-    addEnemigo(x, y, bX) {
-        const en = this.enemigos.create(x, y - 16, 'enemigo');
-        en.setCollideWorldBounds(true, bX, 0);
-    }
-
-    removerBalas() {
-
-    }
-
-    removerMonedas() {
-
-    }
-
-    removerEnemigo() {
-
-    }
-
-    quitarEnemigos() {
-
     }
 
     aumentarPuntos(jugador, moneda) {
@@ -136,47 +89,32 @@ class p2Level extends Phaser.Scene {
         } else {
             this.jugador.body.setSize(12, 15).setOffset(2, 8);
         }
-        //Movemos al jugador.        
+        //Animacion
+        if (this.jugador.body.onFloor()) {
+            if (this.jugador.body.velocity.x === 0) {
+                this.jugador.play('quieto', true);
+            } else {
+                this.jugador.play('correr', true);
+            }
+        } else {
+            if (this.jugador.body.velocity.y > 0) {
+                this.jugador.play('caer', true);
+            } else {
+                this.jugador.play('brincar', true);
+            }
+        }
+        //Movemos al jugador.  
+        if (this.controles.W.isDown && this.jugador.body.onFloor()) {
+            this.jugador.setVelocityY(this.velY);
+        }
         if (this.controles.A.isDown) {
             this.jugador.setVelocityX(this.velX * -1);
-            if (this.jugador.body.onFloor()) {
-                this.jugador.play('correr', true);
-            } else {
-                if (this.jugador.body.velocity.y > 0) {
-                    this.jugador.play('caer', true);
-                } else {
-                    this.jugador.play('brincar', true);
-                }
-            }
             this.jugador.flipX = true;
         } else if (this.controles.D.isDown) {
             this.jugador.setVelocityX(this.velX);
-            if (this.jugador.body.onFloor()) {
-                this.jugador.play('correr', true);
-            } else {
-                if (this.jugador.body.velocity.y > 0) {
-                    this.jugador.play('caer', true);
-                } else {
-                    this.jugador.play('brincar', true);
-                }
-            }
             this.jugador.flipX = false;
         } else {
             this.jugador.setVelocityX(0);
-            if (this.jugador.body.onFloor()) {
-                this.jugador.play('quieto', true);
-            } else {
-                if (this.jugador.body.velocity.y > 0) {
-                    this.jugador.play('caer', true);
-                } else {
-                    this.jugador.play('brincar', true);
-                }
-            }
-        }
-        if (this.controles.W.isDown && this.jugador.body.onFloor()) {
-            this.jugador.setVelocityY(this.velY);
-            this.jugador.play('brincar', true);
         }
     }
-
 }
