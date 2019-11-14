@@ -79,9 +79,9 @@ class loader extends Phaser.Scene {
             frameWidth: 27,
             frameHeight: 23
         });
-        this.load.spritesheet('enemigo', './assets/textures/enemigoSpriteSheet.png', {
-            frameWidth: 32,
-            frameHeight: 32
+        this.load.spritesheet('enemigo', './assets/textures/jugadorEnemigoSpriteSheet.png', {
+            frameWidth: 27,
+            frameHeight: 23
         });
         this.load.image('bala', './assets/textures/bala.png');
         this.load.image('moneda', './assets/textures/moneda.png');
@@ -116,7 +116,31 @@ class loader extends Phaser.Scene {
             frameRate: 1,
             repeat: 0
         });
-        
+        this.anims.create({
+            key: "quietoE",
+            frames: this.anims.generateFrameNumbers('enemigo', { start: 7, end: 7 }),
+            frameRate: 1,
+            repeat: 0
+        });
+        this.anims.create({
+            key: "correrE",
+            frames: this.anims.generateFrameNumbers('enemigo', { start: 0, end: 5 }),
+            frameRate: 6,
+            repeat: 1
+        });
+        this.anims.create({
+            key: "brincarE",
+            frames: this.anims.generateFrameNumbers('enemigo', { start: 9, end: 9 }),
+            frameRate: 1,
+            repeat: 0
+        });
+        this.anims.create({
+            key: "caerE",
+            frames: this.anims.generateFrameNumbers('enemigo', { start: 10, end: 10 }),
+            frameRate: 1,
+            repeat: 0
+        });
+
         this.scene.start('menu');
     }
 

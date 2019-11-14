@@ -30,7 +30,7 @@ class p1Level extends Phaser.Scene {
 
     //Crea a los demás jugadores.
     crearJugadores(jugTemp) {
-        var newJugador = this.add.sprite(jugTemp.x1, jugTemp.y1, 'jugador');
+        var newJugador = this.add.sprite(jugTemp.x1, jugTemp.y1, 'enemigo');
         newJugador.setOrigin(0.5, 0.5);
         newJugador.setScale(2.3, 2.3);
         if (jugTemp.flipped) {
@@ -39,7 +39,7 @@ class p1Level extends Phaser.Scene {
         } else {
             newJugador.x += newJugador.width / 2;
         }
-        newJugador.play('quieto', true);
+        newJugador.play('quietoE', true);
         newJugador.id = jugTemp.id;
         return newJugador;
     }
@@ -53,27 +53,18 @@ class p1Level extends Phaser.Scene {
         });
     }
 
-    repintarJugadores(self) {
-        Object.keys(jugadores).forEach(function (id) {
-            if (jugadores[id].id !== socket.id) {
-                self.jugadores.id
-            }
-        });
-    }
-
     aumentarPuntos(jugador, moneda) {
+        socket.emit('monedaRecolectada', moneda.id);
         this.monedas.remove(moneda);
         moneda.destroy();
         this.contMonedas += 1;
-        //        socket.emit('monedaRecolectada', moneda);
-        //Enviar a todos los clientes.
     }
 
     aumentarBalas(jugador, bala) {
+        socket.emit('balaRecolectada', bala.id);
         this.balas.remove(bala);
         bala.destroy();
         this.contBalas += 1;
-        //Enviar a todos los clientes.
     }
 
     create() {
@@ -132,8 +123,8 @@ class p1Level extends Phaser.Scene {
         this.physics.add.overlap(this.jugador, this.monedas, this.aumentarPuntos, null, this);
         this.physics.add.overlap(this.jugador, this.balas, this.aumentarBalas, null, this);
         this.physics.add.overlap(this.jugador, this.portal, () => {
-            this.scene.start('p2L');
-        }, null, this)
+            socket.emit('port1');
+        }, null, this);
 
         //Creamos controles.
         this.controles = this.input.keyboard.addKeys({
@@ -157,9 +148,31 @@ class p1Level extends Phaser.Scene {
                 if (jugTemp.id === jugMovido.id) {
                     jugMovido.setPosition(jugTemp.x1, jugTemp.y1);
                     jugMovido.flipX = jugTemp.flipped;
-                    jugMovido.play(jugTemp.anim);
+                    jugMovido.play(jugTemp.anim + "E");
                 }
             });
+        });
+
+        socket.on('eliminarMoneda', function (id) {
+            self.monedas.getChildren().forEach(function (moneda) {
+                if (moneda.id === id) {
+                    self.monedas.remove(moneda);
+                    moneda.destroy();
+                }
+            });
+        });
+
+        socket.on('eliminarBala', function (id) {
+            self.balas.getChildren().forEach(function (bala) {
+                if (bala.id === id) {
+                    self.balas.remove(bala);
+                    bala.destroy();
+                }
+            });
+        });
+        socket.on('1LF', function () {
+            self.scene.start('p2L');
+            self.scene.stop();
         });
     }
 

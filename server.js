@@ -29,120 +29,12 @@ http.listen(port, () => {
 });
 
 var jugadores = {};
-var coleccionables = {
-    balas1: {
-        b1: {
-            id: 1,
-            x: 416,
-            y: 540
-        },
-        b2: {
-            id: 2,
-            x: 352,
-            y: 540
-        },
-        b3: {
-            id: 3,
-            x: 384,
-            y: 540
-        },
-        b4: {
-            id: 4,
-            x: 256,
-            y: 90
-        },
-        b5: {
-            id: 5,
-            x: 768,
-            y: 390
-        },
-        b6: {
-            id: 6,
-            x: 0,
-            y: 390
-        }
-    },
-    monedas1: {
-        m1: {
-            id: 1,
-            x: 704,
-            y: 540
-        },
-        m2: {
-            id: 2,
-            x: 64,
-            y: 540
-        },
-        m3: {
-            id: 3,
-            x: 384,
-            y: 360
-        },
-        m4: {
-            id: 4,
-            x: 384,
-            y: 390
-        },
-        m5: {
-            id: 5,
-            x: 384,
-            y: 420
-        },
-        m6: {
-            id: 6,
-            x: 224,
-            y: 480
-        },
-        m7: {
-            id: 7,
-            x: 544,
-            y: 480
-        },
-        m8: {
-            id: 8,
-            x: 160,
-            y: 210
-        },
-        m9: {
-            id: 9,
-            x: 608,
-            y: 210
-        },
-        m10: {
-            id: 10,
-            x: 384,
-            y: 90
-        },
-        m11: {
-            id: 11,
-            x: 448,
-            y: 90
-        },
-        m12: {
-            id: 12,
-            x: 512,
-            y: 90
-        },
-    },
-    balas2: {
-
-    },
-    monedas2: {
-
-    },
-    balasf: {
-
-    },
-    monedasf: {
-
-    }
-};
+var coleccionables = require('./coleccionables.json');
 var numJugadores = 0;
 var jugadoresListos = 0;
 var partidaEnProceso = false;
 
 //Funciones variadas.
-
 function eliminarJugador(socket) {
     numJugadores--;
     delete jugadores[socket.id];
@@ -163,7 +55,8 @@ function añadirJugador(socket) {
             xf: 384,
             yf: 66,
             flipped: false,
-            anim: 'quieto'
+            anim: 'quieto',
+            puntaje: 0
         }
     } else {
         jugadores[socket.id] = {
@@ -175,7 +68,8 @@ function añadirJugador(socket) {
             xf: 544,
             yf: 63,
             flipped: true,
-            anim: 'quieto'
+            anim: 'quieto',
+            puntaje: 0
         }
     }
 }
@@ -212,4 +106,27 @@ io.on('connection', function (socket) {
         jugadores[socket.id].anim = infoMovimiento.anim;
         socket.broadcast.emit('movimiento', jugadores[socket.id]);
     });
+
+    socket.on('movJugador2', function (infoMovimiento) {
+        jugadores[socket.id].x2 = infoMovimiento.x;
+        jugadores[socket.id].y2 = infoMovimiento.y;
+        jugadores[socket.id].flipped = infoMovimiento.flipped;
+        jugadores[socket.id].anim = infoMovimiento.anim;
+        socket.broadcast.emit('movimiento2', jugadores[socket.id]);
+    });
+
+    socket.on('monedaRecolectada', function (id) {
+        jugadores[socket.id].puntaje += 1;
+        socket.broadcast.emit('eliminarMoneda', id);
+    });
+
+    socket.on('balaRecolectada', function (id) {
+        socket.broadcast.emit('eliminarBala', id);
+    });
+
+    socket.on('port1', function () {
+        io.emit('1LF');
+    });
+
+
 });
