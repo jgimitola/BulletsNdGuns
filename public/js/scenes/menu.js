@@ -29,11 +29,7 @@ class menu extends Phaser.Scene {
             jugarB.setPosition(400, 272);
         });
         jugarBH.on('pointerdown', () => {
-            //if (numJugadores > 1) {
-            //  if (condition) {
-            this.scene.start('p1L');
-            //}
-            //}
+            socket.emit('jugadorListo');
         });
         //Botón ¿Cómo jugar? y sus eventos.
         let cjugarB = this.add.image(400, 357, 'comoJBoton');
@@ -56,6 +52,12 @@ class menu extends Phaser.Scene {
         });
         popUpJ.on('pointerdown', () => {
             popUpJ.setPosition(-272, -137);
+        });
+        //Iniciamos cuando el servidor sepa que todos están listos.
+        socket.on('iniciar', (init) => {
+            if (init) {
+                this.scene.start('p1L');
+            }
         });
     }
 }

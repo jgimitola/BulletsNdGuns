@@ -2,7 +2,7 @@ class p2Level extends Phaser.Scene {
     constructor() {
         super("p2L");
         this.velX = 270;
-        this.velY = -1000;
+        this.velY = -525;
     }
 
     create() {
@@ -62,7 +62,8 @@ class p2Level extends Phaser.Scene {
         this.controles = this.input.keyboard.addKeys({
             W: Phaser.Input.Keyboard.KeyCodes.W,
             A: Phaser.Input.Keyboard.KeyCodes.A,
-            D: Phaser.Input.Keyboard.KeyCodes.D
+            D: Phaser.Input.Keyboard.KeyCodes.D,
+            SPACE: Phaser.Input.Keyboard.KeyCodes.SPACE
         });
     }
 

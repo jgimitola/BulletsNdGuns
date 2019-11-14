@@ -116,6 +116,7 @@ class loader extends Phaser.Scene {
             frameRate: 1,
             repeat: 0
         });
+        
         this.scene.start('menu');
     }
 
