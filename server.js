@@ -44,6 +44,9 @@ function eliminarJugador(socket) {
     if (numJugadores === 0) {
         partidaEnProceso = false;
     }
+    if (jugadoresListos === numJugadores && !partidaEnProceso) {
+        io.emit('iniciar', true);
+    }
 }
 
 function añadirJugador(socket) {
@@ -92,6 +95,7 @@ io.on('connection', function (socket) {
         io.emit('actNumJugadores', numJugadores);
         io.emit('jugadoresActuales', jugadores);
         io.emit('jugadorDesconectado', socket.id)
+        console.log('Jugador desconectado: ' + socket.id);
     });
 
     socket.on('jugadorListo', function () {
@@ -138,14 +142,18 @@ io.on('connection', function (socket) {
     });
 
     socket.on('port1', function () {
+        io.emit('actPuntos', jugadores[socket.id].puntos);
+        io.emit('jugadoresActuales', jugadores);
         io.emit('1LF');
     });
 
     socket.on('port2', function () {
+        io.emit('jugadoresActuales', jugadores);
         io.emit('2LF');
     });
 
     socket.on('portF', function () {
+        io.emit('jugadoresActuales', jugadores);
         io.emit('FLF');
     });
 });

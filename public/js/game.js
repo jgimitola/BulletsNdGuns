@@ -16,10 +16,10 @@ const config = {
             gravity: {
                 y: 1500
             },
-            debug: true
+            debug: false
         }
     },
-    scene: [loader, menu, p1Level, p2Level, fBoss],
+    scene: [loader, menu, p1Level, p2Level, fBoss, gameOver],
     pixelArt: true,
     antialias: true
 };

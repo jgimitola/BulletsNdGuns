@@ -71,7 +71,7 @@ class p2Level extends Phaser.Scene {
         var self = this;
         //Contadores.
         this.contBalas = 2;
-        this.contMonedas = 0;
+        this.contMonedas = jugadores[socket.id].puntaje;
         //Scores de balas y monedas.
         this.textBalas = this.add.text(2, 0, 'Munición: ' + this.contBalas);
         this.textMonedas = this.add.text(2, 12, 'Monedas: ' + this.contMonedas);
