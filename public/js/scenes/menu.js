@@ -17,6 +17,8 @@ class menu extends Phaser.Scene {
         //Botón comenzar y sus eventos.
         let jugarB = this.add.image(400, 272, 'jugarBoton');
         let jugarBH = this.add.image(-150, 272, 'jugarBotonHover');
+        let esperandoB = this.add.sprite(-150, 272, 'waitingFL');
+        let click = false;
         jugarB.setInteractive();
         jugarBH.setInteractive();
         jugarB.on('pointerover', () => {
@@ -25,10 +27,17 @@ class menu extends Phaser.Scene {
             botonEfecto.play();
         });
         jugarBH.on('pointerout', () => {
-            jugarBH.setPosition(-150, 272);
-            jugarB.setPosition(400, 272);
+            if (!click) {
+                jugarBH.setPosition(-150, 272);
+                jugarB.setPosition(400, 272);
+            }
         });
         jugarBH.on('pointerdown', () => {
+            click = true;
+            jugarB.setPosition(-150, 272);
+            jugarBH.setPosition(-150, 272);
+            esperandoB.setPosition(400, 272);
+            esperandoB.play('esperando');
             socket.emit('jugadorListo');
         });
         //Botón ¿Cómo jugar? y sus eventos.

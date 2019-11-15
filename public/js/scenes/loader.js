@@ -75,6 +75,10 @@ class loader extends Phaser.Scene {
         this.load.image('jugarBotonHover', '../assets/textures/jugarBoton_Hover.png');
         this.load.image('comoJBoton', '../assets/textures/comojugarBoton.png');
         this.load.image('comoJBotonHover', '../assets/textures/comojugarBoton_Hover.png');
+        this.load.spritesheet('waitingFL', '../assets/textures/waitingforlove.png', {
+            frameWidth: 291,
+            frameHeight: 70
+        });
         this.load.spritesheet('jugador', './assets/textures/jugadorSpriteSheet.png', {
             frameWidth: 27,
             frameHeight: 23
@@ -92,6 +96,12 @@ class loader extends Phaser.Scene {
         this.load.tilemapTiledJSON('map3', './assets/tilemaps/bossLevel.json');
     }
     create() {
+        this.anims.create({
+            key: 'esperando',
+            frames: this.anims.generateFrameNumbers('waitingFL'),
+            frameRate: 2,
+            repeat: -1
+        });
         this.anims.create({
             key: "quieto",
             frames: this.anims.generateFrameNumbers('jugador', { start: 7, end: 7 }),
@@ -140,7 +150,6 @@ class loader extends Phaser.Scene {
             frameRate: 1,
             repeat: 0
         });
-
         this.scene.start('menu');
     }
 

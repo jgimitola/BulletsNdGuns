@@ -134,44 +134,52 @@ class p2Level extends Phaser.Scene {
             SPACE: Phaser.Input.Keyboard.KeyCodes.SPACE
         });
 
-        //Eventos de socket.
+        ///Eventos de socket.
         socket.on('jugadorDesconectado', function (idEliminar) {
-            self.jugadores.getChildren().forEach(function (jugTemp) {
-                if (idEliminar === jugTemp.id) {
-                    jugTemp.destroy();
-                }
-            });
+            if (!nivel2F) {
+                self.jugadores.getChildren().forEach(function (jugTemp) {
+                    if (idEliminar === jugTemp.id) {
+                        jugTemp.destroy();
+                    }
+                });
+            }
         });
 
-        socket.on('movimiento2', function (jugTemp) {
-            self.jugadores.getChildren().forEach(function (jugMovido) {
-                if (jugTemp.id === jugMovido.id) {
-                    jugMovido.setPosition(jugTemp.x2, jugTemp.y2);
-                    jugMovido.flipX = jugTemp.flipped;
-                    jugMovido.play(jugTemp.anim + "E");
-                }
-            });
+        socket.on('movimiento', function (jugTemp) {
+            if (!nivel2F) {
+                self.jugadores.getChildren().forEach(function (jugMovido) {
+                    if (jugTemp.id === jugMovido.id) {
+                        jugMovido.setPosition(jugTemp.x2, jugTemp.y2);
+                        jugMovido.flipX = jugTemp.flipped;
+                        jugMovido.play(jugTemp.anim + "E", true);
+                    }
+                });
+            }
         });
 
         socket.on('eliminarMoneda', function (id) {
-            self.monedas.getChildren().forEach(function (moneda) {
-                if (moneda.id === id) {
-                    self.monedas.remove(moneda);
-                    moneda.destroy();
-                }
-            });
+            if (!nivel2F) {
+                self.monedas.getChildren().forEach(function (moneda) {
+                    if (moneda.id === id) {
+                        self.monedas.remove(moneda);
+                        moneda.destroy();
+                    }
+                });
+            }
         });
 
         socket.on('eliminarBala', function (id) {
-            self.balas.getChildren().forEach(function (bala) {
-                if (bala.id === id) {
-                    self.balas.remove(bala);
-                    bala.destroy();
-                }
-            });
+            if (!nivel2F) {
+                self.balas.getChildren().forEach(function (bala) {
+                    if (bala.id === id) {
+                        self.balas.remove(bala);
+                        bala.destroy();
+                    }
+                });
+            }
         });
-
         socket.on('2LF', function () {
+            nivel2F = true;
             self.scene.start('fB');
         });
     }

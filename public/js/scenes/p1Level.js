@@ -136,41 +136,50 @@ class p1Level extends Phaser.Scene {
 
         //Eventos de socket.
         socket.on('jugadorDesconectado', function (idEliminar) {
-            self.jugadores.getChildren().forEach(function (jugTemp) {
-                if (idEliminar === jugTemp.id) {
-                    jugTemp.destroy();
-                }
-            });
+            if (!nivel1F) {
+                self.jugadores.getChildren().forEach(function (jugTemp) {
+                    if (idEliminar === jugTemp.id) {
+                        jugTemp.destroy();
+                    }
+                });
+            }
         });
 
         socket.on('movimiento', function (jugTemp) {
-            self.jugadores.getChildren().forEach(function (jugMovido) {
-                if (jugTemp.id === jugMovido.id) {
-                    jugMovido.setPosition(jugTemp.x1, jugTemp.y1);
-                    jugMovido.flipX = jugTemp.flipped;
-                    jugMovido.play(jugTemp.anim + "E");
-                }
-            });
+            if (!nivel1F) {
+                self.jugadores.getChildren().forEach(function (jugMovido) {
+                    if (jugTemp.id === jugMovido.id) {
+                        jugMovido.setPosition(jugTemp.x1, jugTemp.y1);
+                        jugMovido.flipX = jugTemp.flipped;
+                        jugMovido.play(jugTemp.anim + "E", true);
+                    }
+                });
+            }
         });
 
         socket.on('eliminarMoneda', function (id) {
-            self.monedas.getChildren().forEach(function (moneda) {
-                if (moneda.id === id) {
-                    self.monedas.remove(moneda);
-                    moneda.destroy();
-                }
-            });
+            if (!nivel1F) {
+                self.monedas.getChildren().forEach(function (moneda) {
+                    if (moneda.id === id) {
+                        self.monedas.remove(moneda);
+                        moneda.destroy();
+                    }
+                });
+            }
         });
 
         socket.on('eliminarBala', function (id) {
-            self.balas.getChildren().forEach(function (bala) {
-                if (bala.id === id) {
-                    self.balas.remove(bala);
-                    bala.destroy();
-                }
-            });
+            if (!nivel1F) {
+                self.balas.getChildren().forEach(function (bala) {
+                    if (bala.id === id) {
+                        self.balas.remove(bala);
+                        bala.destroy();
+                    }
+                });
+            }
         });
         socket.on('1LF', function () {
+            nivel1F = true;
             self.scene.start('p2L');
             self.scene.stop();
         });

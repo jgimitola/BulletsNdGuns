@@ -36,6 +36,9 @@ var partidaEnProceso = false;
 
 //Funciones variadas.
 function eliminarJugador(socket) {
+    if (jugadores[socket.id].listo) {
+        jugadoresListos--;
+    }
     numJugadores--;
     delete jugadores[socket.id];
     if (numJugadores === 0) {
@@ -52,24 +55,26 @@ function añadirJugador(socket) {
             y1: 514,
             x2: 96,
             y2: 546,
-            xf: 384,
-            yf: 66,
+            xf: 64,
+            yf: 540,
             flipped: false,
             anim: 'quieto',
-            puntaje: 0
+            puntaje: 0,
+            listo: false
         }
     } else {
         jugadores[socket.id] = {
             id: socket.id,
             x1: 803,
             y1: 514,
-            x2: 736,
+            x2: 709,
             y2: 543,
-            xf: 544,
-            yf: 63,
+            xf: 736,
+            yf: 540,
             flipped: true,
             anim: 'quieto',
-            puntaje: 0
+            puntaje: 0,
+            listo: false
         }
     }
 }
@@ -83,19 +88,20 @@ io.on('connection', function (socket) {
     console.log('Nuevo jugador: ' + socket.id);
 
     socket.on('disconnect', function () {
-        jugadoresListos--;
         eliminarJugador(socket);
         io.emit('actNumJugadores', numJugadores);
         io.emit('jugadoresActuales', jugadores);
         io.emit('jugadorDesconectado', socket.id)
-        console.log('Jugador desconectado: ' + socket.id);
     });
 
     socket.on('jugadorListo', function () {
-        jugadoresListos++;
-        if (numJugadores > 1 && jugadoresListos === numJugadores) {
-            partidaEnProceso = true;
-            io.emit('iniciar', true);
+        if (!jugadores[socket.id].listo) {
+            jugadores[socket.id].listo = true;
+            jugadoresListos++;
+            if (numJugadores > 1 && jugadoresListos === numJugadores) {
+                partidaEnProceso = true;
+                io.emit('iniciar', true);
+            }
         }
     });
 
@@ -112,7 +118,14 @@ io.on('connection', function (socket) {
         jugadores[socket.id].y2 = infoMovimiento.y;
         jugadores[socket.id].flipped = infoMovimiento.flipped;
         jugadores[socket.id].anim = infoMovimiento.anim;
-        socket.broadcast.emit('movimiento2', jugadores[socket.id]);
+        socket.broadcast.emit('movimiento', jugadores[socket.id]);
+    });
+    socket.on('movJugadorF', function (infoMovimiento) {
+        jugadores[socket.id].xf = infoMovimiento.x;
+        jugadores[socket.id].yf = infoMovimiento.y;
+        jugadores[socket.id].flipped = infoMovimiento.flipped;
+        jugadores[socket.id].anim = infoMovimiento.anim;
+        socket.broadcast.emit('movimiento', jugadores[socket.id]);
     });
 
     socket.on('monedaRecolectada', function (id) {
@@ -128,5 +141,11 @@ io.on('connection', function (socket) {
         io.emit('1LF');
     });
 
+    socket.on('port2', function () {
+        io.emit('2LF');
+    });
 
+    socket.on('portF', function () {
+        io.emit('FLF');
+    });
 });
