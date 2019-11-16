@@ -109,6 +109,14 @@ io.on('connection', function (socket) {
         }
     });
 
+    socket.on('reiniciarPos', function (id) {
+        io.to(id).emit('reSpawn');
+    });
+
+    socket.on('disparo', function (info) {
+        socket.broadcast.emit('disparar', info);
+    });
+
     socket.on('movJugador', function (infoMovimiento) {
         jugadores[socket.id].x1 = infoMovimiento.x;
         jugadores[socket.id].y1 = infoMovimiento.y;
@@ -142,7 +150,6 @@ io.on('connection', function (socket) {
     });
 
     socket.on('port1', function () {
-        io.emit('actPuntos', jugadores[socket.id].puntos);
         io.emit('jugadoresActuales', jugadores);
         io.emit('1LF');
     });

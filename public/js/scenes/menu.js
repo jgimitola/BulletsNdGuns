@@ -17,6 +17,20 @@ class menu extends Phaser.Scene {
         //Botón comenzar y sus eventos.
         let jugarB = this.add.image(400, 272, 'jugarBoton');
         let jugarBH = this.add.image(-150, 272, 'jugarBotonHover');
+        let infoB = this.add.image(785, 15, 'info');
+        let creditos = this.add.image(-300, -300, 'creditos');
+        creditos.setInteractive();
+        creditos.on('pointerdown', () => {
+            creditos.setPosition(-300, -300);
+            jugarB.setPosition(400, 272);
+            cjugarB.setPosition(400, 357);
+        });
+        infoB.setInteractive();
+        infoB.on('pointerdown', () => {
+            jugarB.setPosition(-300, -300);
+            cjugarB.setPosition(-300, -300);
+            creditos.setPosition(400, 300);
+        });
         let esperandoB = this.add.sprite(-150, 272, 'waitingFL');
         let click = false;
         jugarB.setInteractive();

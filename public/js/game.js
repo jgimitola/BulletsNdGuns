@@ -16,7 +16,7 @@ const config = {
             gravity: {
                 y: 1500
             },
-            debug: false
+            debug: true
         }
     },
     scene: [loader, menu, p1Level, p2Level, fBoss, gameOver],

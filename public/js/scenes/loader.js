@@ -68,7 +68,11 @@ class loader extends Phaser.Scene {
 
         //Cargamos todo.
         this.load.audio('hoverB', '../assets/sounds/hoverButton.ogg');
+        this.load.audio('disparo', '../assets/sounds/disparo.mp3');
+        this.load.audio('saltar', '../assets/sounds/saltar.wav');
         this.load.image('titulo', '../assets/textures/titulo.png');
+        this.load.image('creditos', '../assets/textures/creditos.png');
+        this.load.image('info', '../assets/textures/info.png');
         this.load.image('popUp', '../assets/textures/popUpComoJugar.png');
         this.load.image('fondo', '../assets/textures/fondo.png');
         this.load.image('jugarBoton', '../assets/textures/jugarBoton.png');
@@ -88,6 +92,7 @@ class loader extends Phaser.Scene {
             frameHeight: 23
         });
         this.load.image('bala', './assets/textures/bala.png');
+        this.load.image('balaD', './assets/textures/balaDisparada.png');
         this.load.image('moneda', './assets/textures/moneda.png');
         this.load.image('portal', './assets/textures/portal.png');
         this.load.image('tiles', './assets/textures/p1LevelTS.png');
@@ -95,7 +100,7 @@ class loader extends Phaser.Scene {
         this.load.tilemapTiledJSON('map2', './assets/tilemaps/p2Level.json');
         this.load.tilemapTiledJSON('map3', './assets/tilemaps/bossLevel.json');
     }
-    create() {
+    create() {        
         this.anims.create({
             key: 'esperando',
             frames: this.anims.generateFrameNumbers('waitingFL'),
@@ -127,6 +132,12 @@ class loader extends Phaser.Scene {
             repeat: 0
         });
         this.anims.create({
+            key: "disparar",
+            frames: this.anims.generateFrameNumbers('jugador', { start: 8, end: 8 }),
+            frameRate: 1,
+            repeat: 1
+        });
+        this.anims.create({
             key: "quietoE",
             frames: this.anims.generateFrameNumbers('enemigo', { start: 7, end: 7 }),
             frameRate: 1,
@@ -149,6 +160,12 @@ class loader extends Phaser.Scene {
             frames: this.anims.generateFrameNumbers('enemigo', { start: 10, end: 10 }),
             frameRate: 1,
             repeat: 0
+        });
+        this.anims.create({
+            key: "dispararE",
+            frames: this.anims.generateFrameNumbers('enemigo', { start: 8, end: 8 }),
+            frameRate: 1,
+            repeat: 1
         });
         this.scene.start('menu');
     }
