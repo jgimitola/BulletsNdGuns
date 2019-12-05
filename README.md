@@ -22,11 +22,11 @@ Se desarrolló un juego multijugador que mezcla el estilo de plataformas y shoot
 
 ## ¿Con qué se desarrolló?
 
-Este proyecto se desarrolló sobre [NodeJS]([https://nodejs.org/](https://nodejs.org) trabajando con las siguientes dependencias:
+Este proyecto se desarrolló sobre [NodeJS](https://nodejs.org) trabajando con las siguientes dependencias:
 
 - [Phaser.io](https://phaser.io/) para la parte del motor del juego.
 
-- [ExpressJS]([https://expressjs.com/](https://expressjs.com) para el servidor web.
+- [ExpressJS](https://expressjs.com) para el servidor web.
 
 - [Socket.io](https://socket.io) para la parte de los sockets.
 
