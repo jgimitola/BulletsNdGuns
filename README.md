@@ -2,7 +2,7 @@
 
 Proyecto de un pequeño juego que utilize hilos y sockets para la asignatura Estructura de Datos. Desarrollado por Jesús Imitola, Santiago Guerrero y Julio Mendoza.
 
-Si desea jugar una versión en vivo haga [click aquí.](https:/bndg.herokuapp.com)
+Si desea jugar una versión en vivo haga [click aquí.](https://bndg.herokuapp.com/)
 
 ## Descripción:
 
