@@ -22,7 +22,7 @@
   "homepage": "https://github.com/jgimitola/BulletsNdGuns#readme",
   "dependencies": {
     "express": "^4.17.1",
-    "phaser": "^3.20.1",
+    "phaser": "^3.55.2",
     "socket.io": "^2.5.0"
   }
 }
