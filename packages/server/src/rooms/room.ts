@@ -13,8 +13,10 @@ import {
   type BulletState,
   type InputFrame,
   type InputKeys,
-  type MatchScores,
+  type MatchEndReason,
   type PlayerId,
+  type RoomLobby,
+  type RoomSummary,
   type ServerToClientEvents,
   type Side,
   type WorldState,
@@ -34,12 +36,14 @@ export interface TickScheduler {
   stop(): void;
 }
 
+/** A closed room is finished for good: its manager forgets it and it ignores every call. */
 export type RoomPhase =
   | { kind: 'lobby'; ready: Set<PlayerId> }
   | { kind: 'playing'; world: WorldState }
-  | { kind: 'gameOver'; scores: MatchScores['scores'] };
+  | { kind: 'closed' };
 
 interface Participant {
+  nickname: string;
   side: Side;
   queue: InputFrame[];
   /** Highest seq ever queued; anything at or below is stale. */
@@ -51,19 +55,32 @@ interface Participant {
   ackSeq: number;
 }
 
+export interface RoomOptions {
+  id: string;
+  name: string;
+  transport: RoomTransport;
+  scheduler: TickScheduler;
+  /** Called once, when the room closes. */
+  onClosed?: (room: Room) => void;
+}
+
 export class Room {
   readonly id: string;
+  readonly name: string;
   private readonly transport: RoomTransport;
   private readonly scheduler: TickScheduler;
+  private readonly onClosed: (room: Room) => void;
   private phase: RoomPhase = { kind: 'lobby', ready: new Set() };
   private readonly participants = new Map<PlayerId, Participant>();
   /** Bullets fired since the last snapshot, sent with the next one so every shot is heard. */
   private pendingShots: BulletState[] = [];
 
-  constructor(id: string, transport: RoomTransport, scheduler: TickScheduler) {
+  constructor({ id, name, transport, scheduler, onClosed = () => {} }: RoomOptions) {
     this.id = id;
+    this.name = name;
     this.transport = transport;
     this.scheduler = scheduler;
+    this.onClosed = onClosed;
   }
 
   get phaseKind(): RoomPhase['kind'] {
@@ -74,12 +91,36 @@ export class Room {
     return [...this.participants.keys()];
   }
 
-  join(playerId: PlayerId): 'joined' | 'refused' {
+  /** The room table row. */
+  summary(): RoomSummary {
+    return {
+      id: this.id,
+      name: this.name,
+      players: this.participants.size,
+      status: this.phase.kind === 'lobby' ? 'lobby' : 'playing',
+    };
+  }
+
+  lobby(): RoomLobby {
+    const ready = this.phase.kind === 'lobby' ? this.phase.ready : new Set<PlayerId>();
+    return {
+      id: this.id,
+      name: this.name,
+      players: [...this.participants].map(([id, p]) => ({
+        id,
+        nickname: p.nickname,
+        ready: ready.has(id),
+      })),
+    };
+  }
+
+  join(playerId: PlayerId, nickname: string): 'joined' | 'refused' {
     if (this.phase.kind !== 'lobby' || this.participants.has(playerId)) return 'refused';
     let left = 0;
     for (const p of this.participants.values()) if (p.side === 'left') left++;
     const right = this.participants.size - left;
     this.participants.set(playerId, {
+      nickname,
       side: left <= right ? 'left' : 'right',
       queue: [],
       lastQueuedSeq: 0,
@@ -87,32 +128,33 @@ export class Room {
       emptyTicks: 0,
       ackSeq: 0,
     });
+    this.sendLobby();
     return 'joined';
   }
 
+  /** An empty room closes; a match left with one player ends and that player wins. */
   leave(playerId: PlayerId): void {
-    if (!this.participants.delete(playerId)) return;
-    switch (this.phase.kind) {
-      case 'lobby':
-        this.phase.ready.delete(playerId);
-        break;
-      case 'playing':
-        this.phase = { kind: 'playing', world: removePlayer(this.phase.world, playerId) };
-        break;
-      case 'gameOver':
-        break;
-    }
+    if (this.phase.kind === 'closed' || !this.participants.delete(playerId)) return;
     if (this.participants.size === 0) {
-      this.scheduler.stop();
-      this.phase = { kind: 'lobby', ready: new Set() };
+      this.close();
       return;
     }
+    if (this.phase.kind === 'playing') {
+      const world = removePlayer(this.phase.world, playerId);
+      this.phase = { kind: 'playing', world };
+      if (this.participants.size === 1) this.endMatch(world, 'rivalsLeft');
+      return;
+    }
+    this.phase.ready.delete(playerId);
+    this.sendLobby();
     this.maybeStart();
   }
 
   markReady(playerId: PlayerId): void {
     if (this.phase.kind !== 'lobby' || !this.participants.has(playerId)) return;
+    if (this.phase.ready.has(playerId)) return;
     this.phase.ready.add(playerId);
+    this.sendLobby();
     this.maybeStart();
   }
 
@@ -135,10 +177,7 @@ export class Room {
     const completed = stepped.events.find((e) => e.type === 'levelCompleted');
     if (completed) {
       if (isLastLevel(world.levelIndex)) {
-        const scores = world.players.map((p) => ({ id: p.id, score: p.score }));
-        this.phase = { kind: 'gameOver', scores };
-        this.scheduler.stop();
-        this.broadcast((id) => this.transport.send(id, 'matchEnded', { scores }));
+        this.endMatch(world, 'completed');
         return;
       }
       world = startLevel(world, world.levelIndex + 1);
@@ -170,6 +209,20 @@ export class Room {
   /** @internal Test seam. */
   ackSeqForTest(playerId: PlayerId): number {
     return this.ackOf(playerId);
+  }
+
+  private endMatch(world: WorldState, reason: MatchEndReason): void {
+    const scores = world.players.map((p) => ({ id: p.id, score: p.score }));
+    this.broadcast((id) => this.transport.send(id, 'matchEnded', { scores, reason }));
+    this.close();
+  }
+
+  private close(): void {
+    this.phase = { kind: 'closed' };
+    this.scheduler.stop();
+    this.participants.clear();
+    this.pendingShots = [];
+    this.onClosed(this);
   }
 
   private maybeStart(): void {
@@ -219,11 +272,19 @@ export class Room {
     return inputs;
   }
 
+  private sendLobby(): void {
+    const lobby = this.lobby();
+    this.broadcast((id) => this.transport.send(id, 'lobbyUpdated', lobby));
+  }
+
   private sendLevelStarted(world: WorldState): void {
+    const nicknames: Record<PlayerId, string> = {};
+    for (const [id, p] of this.participants) nicknames[id] = p.nickname;
     this.broadcast((id) =>
       this.transport.send(id, 'levelStarted', {
         levelIndex: world.levelIndex,
         snapshot: toSnapshot(world, this.ackOf(id)),
+        nicknames,
       }),
     );
   }

@@ -16,16 +16,27 @@ import { TickLoop } from './rooms/tick-loop.ts';
 export async function startServer(
   config: ServerConfig,
 ): Promise<{ port: number; close(): Promise<void> }> {
-  const httpServer = createServer(createApp(config));
+  // `rooms` is only read once requests arrive, after it is assigned below.
+  const httpServer = createServer(createApp(config, { listRooms: () => rooms.list() }));
   const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
     maxHttpBufferSize: MAX_SOCKET_MESSAGE_BYTES,
   });
-  const loops: TickLoop[] = [];
   const transport = createSocketTransport(io);
-  const rooms = new RoomManager((id) => {
+  // Loops of open rooms only: a room drops its own when it closes.
+  const loops = new Set<TickLoop>();
+  const rooms = new RoomManager(({ id, name, onClosed }) => {
     const loop = new TickLoop();
-    loops.push(loop);
-    return new Room(id, transport, loop);
+    loops.add(loop);
+    return new Room({
+      id,
+      name,
+      transport,
+      scheduler: loop,
+      onClosed: (room) => {
+        loops.delete(loop);
+        onClosed?.(room);
+      },
+    });
   });
   attachSocketGateway(io, rooms);
 

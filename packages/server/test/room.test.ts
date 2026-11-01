@@ -5,13 +5,16 @@ import {
   STARTING_AMMO,
   getLevel,
   type InputFrame,
+  type LevelStarted,
+  type MatchEnded,
   type PlayerId,
+  type RoomLobby,
   type ServerToClientEvents,
   type Snapshot,
   type WorldState,
 } from '@bng/shared';
 import { Room, type RoomTransport, type TickScheduler } from '../src/rooms/room.ts';
-import { RoomManager } from '../src/rooms/room-manager.ts';
+import { MAX_ROOMS, RoomManager, type RoomResult } from '../src/rooms/room-manager.ts';
 
 interface Sent {
   to: PlayerId;
@@ -47,13 +50,20 @@ class FakeScheduler implements TickScheduler {
 function setup() {
   const transport = new FakeTransport();
   const scheduler = new FakeScheduler();
-  const room = new Room('r', transport, scheduler);
-  return { room, transport, scheduler };
+  const closed: Room[] = [];
+  const room = new Room({
+    id: 'r',
+    name: 'Sala',
+    transport,
+    scheduler,
+    onClosed: (r) => closed.push(r),
+  });
+  return { room, transport, scheduler, closed };
 }
 
 function startMatch(ids: PlayerId[] = ['a', 'b']) {
   const ctx = setup();
-  for (const id of ids) ctx.room.join(id);
+  for (const id of ids) ctx.room.join(id, id);
   for (const id of ids) ctx.room.markReady(id);
   return ctx;
 }
@@ -97,10 +107,10 @@ function placeOnPortal(room: Room, id: PlayerId, world: WorldState = room.worldF
 describe('Room', () => {
   test('starts only when >= 2 players and all ready', () => {
     const { room, transport, scheduler } = setup();
-    room.join('a');
+    room.join('a', 'a');
     room.markReady('a');
     expect(room.phaseKind).toBe('lobby');
-    room.join('b');
+    room.join('b', 'b');
     expect(room.phaseKind).toBe('lobby');
     room.markReady('b');
     expect(room.phaseKind).toBe('playing');
@@ -113,8 +123,8 @@ describe('Room', () => {
 
   test('a lone remaining ready player does not start', () => {
     const { room, scheduler } = setup();
-    room.join('a');
-    room.join('b');
+    room.join('a', 'a');
+    room.join('b', 'b');
     room.markReady('a');
     room.leave('b');
     expect(room.phaseKind).toBe('lobby');
@@ -123,22 +133,65 @@ describe('Room', () => {
 
   test('leaving can start the match when the rest are all ready', () => {
     const { room } = setup();
-    for (const id of ['a', 'b', 'c']) room.join(id);
+    for (const id of ['a', 'b', 'c']) room.join(id, id);
     room.markReady('a');
     room.markReady('b');
     room.leave('c');
     expect(room.phaseKind).toBe('playing');
   });
 
-  test('join refused while playing and during gameOver', () => {
+  test('join refused while playing and once closed', () => {
     const { room } = startMatch();
-    expect(room.join('c')).toBe('refused');
+    expect(room.join('c', 'c')).toBe('refused');
+    expect(room.playerIds).toEqual(['a', 'b']);
     room.__setWorldForTest({ ...room.worldForTest()!, levelIndex: LEVELS.length - 1 });
     placeOnPortal(room, 'a');
     room.tick();
-    expect(room.phaseKind).toBe('gameOver');
-    expect(room.join('c')).toBe('refused');
-    expect(room.playerIds).toEqual(['a', 'b']);
+    expect(room.phaseKind).toBe('closed');
+    expect(room.join('c', 'c')).toBe('refused');
+    expect(room.playerIds).toEqual([]);
+  });
+
+  test('lobby changes are broadcast with nicknames and ready state', () => {
+    const { room, transport } = setup();
+    room.join('a', 'Ana');
+    room.join('b', 'Beto');
+    room.markReady('a');
+    room.markReady('a');
+    const lobbies = transport.of('a', 'lobbyUpdated').map((s) => s.args[0] as RoomLobby);
+    expect(lobbies).toHaveLength(3);
+    expect(lobbies.at(-1)).toEqual({
+      id: 'r',
+      name: 'Sala',
+      players: [
+        { id: 'a', nickname: 'Ana', ready: true },
+        { id: 'b', nickname: 'Beto', ready: false },
+      ],
+    });
+    room.leave('a');
+    const last = transport.of('b', 'lobbyUpdated').at(-1)!.args[0] as RoomLobby;
+    expect(last.players).toEqual([{ id: 'b', nickname: 'Beto', ready: false }]);
+    expect(transport.of('a', 'lobbyUpdated')).toHaveLength(3);
+  });
+
+  test('summary reports players and status', () => {
+    const { room } = setup();
+    room.join('a', 'Ana');
+    expect(room.summary()).toEqual({ id: 'r', name: 'Sala', players: 1, status: 'lobby' });
+    room.join('b', 'Beto');
+    room.markReady('a');
+    room.markReady('b');
+    expect(room.summary()).toEqual({ id: 'r', name: 'Sala', players: 2, status: 'playing' });
+  });
+
+  test('levelStarted carries every nickname', () => {
+    const { room, transport } = setup();
+    room.join('a', 'Ana');
+    room.join('b', 'Beto');
+    room.markReady('a');
+    room.markReady('b');
+    const started = transport.of('b', 'levelStarted')[0]!.args[0] as LevelStarted;
+    expect(started.nicknames).toEqual({ a: 'Ana', b: 'Beto' });
   });
 
   test('sides alternate by join order', () => {
@@ -153,10 +206,10 @@ describe('Room', () => {
 
   test('a joining player takes the side with fewer players; ties go left', () => {
     const { room } = setup();
-    room.join('a');
-    room.join('b');
+    room.join('a', 'a');
+    room.join('b', 'b');
     room.leave('a');
-    room.join('a2');
+    room.join('a2', 'a2');
     room.markReady('b');
     room.markReady('a2');
     const sides = room.worldForTest()!.players.map((p) => [p.id, p.side]);
@@ -261,8 +314,8 @@ describe('Room', () => {
 
   test('lobby frames do not apply once the match starts', () => {
     const { room } = setup();
-    room.join('a');
-    room.join('b');
+    room.join('a', 'a');
+    room.join('b', 'b');
     room.queueInput('a', frame(1, { right: true }));
     room.markReady('a');
     room.markReady('b');
@@ -338,65 +391,80 @@ describe('Room', () => {
     expect(transport.of('a', 'levelStarted')).toHaveLength(2);
   });
 
-  test('last portal ends match: matchEnded, scheduler stopped, phase gameOver', () => {
-    const { room, transport, scheduler } = startMatch();
+  test('last portal ends match: matchEnded completed, scheduler stopped, room closed', () => {
+    const { room, transport, scheduler, closed } = startMatch();
     room.__setWorldForTest({ ...room.worldForTest()!, levelIndex: LEVELS.length - 1 });
     placeOnPortal(room, 'a');
     room.tick();
-    expect(room.phaseKind).toBe('gameOver');
+    expect(room.phaseKind).toBe('closed');
     expect(scheduler.stops).toBe(1);
+    expect(closed).toEqual([room]);
     const payloads = ['a', 'b'].map((id) => {
       const ended = transport.of(id, 'matchEnded');
       expect(ended).toHaveLength(1);
-      return ended[0]!.args[0] as { scores: { id: string; score: number }[] };
+      return ended[0]!.args[0] as MatchEnded;
     });
     // Standing on the portal may also pick up a coin on the same tick, so only a's score is open.
     expect(payloads[0]).toEqual(payloads[1]);
+    expect(payloads[0]!.reason).toBe('completed');
     expect(payloads[0]!.scores.map((s) => s.id)).toEqual(['a', 'b']);
     expect(payloads[0]!.scores[1]!.score).toBe(0);
+    room.tick();
+    expect(transport.of('a', 'snapshot')).toHaveLength(0);
   });
 
-  test('leave during playing removes player and keeps ticking', () => {
-    const { room, transport } = startMatch();
+  test('leave during playing with others left removes the player and keeps ticking', () => {
+    const { room, transport, closed } = startMatch(['a', 'b', 'c']);
     room.leave('b');
     expect(room.phaseKind).toBe('playing');
-    expect(room.playerIds).toEqual(['a']);
+    expect(room.playerIds).toEqual(['a', 'c']);
     expect(() => ticks(room, 3)).not.toThrow();
-    const snap = transport.of('a', 'snapshot')[0]!.args[0] as { players: { id: string }[] };
-    expect(snap.players.map((p) => p.id)).toEqual(['a']);
+    const snap = transport.of('a', 'snapshot')[0]!.args[0] as Snapshot;
+    expect(snap.players.map((p) => p.id)).toEqual(['a', 'c']);
     expect(transport.of('b', 'snapshot')).toHaveLength(0);
+    expect(closed).toEqual([]);
   });
 
-  test('room resets to lobby when everyone leaves', () => {
-    const { room, scheduler } = startMatch();
-    room.__setWorldForTest({ ...room.worldForTest()!, levelIndex: LEVELS.length - 1 });
-    placeOnPortal(room, 'a');
-    room.tick();
-    expect(room.phaseKind).toBe('gameOver');
-    room.leave('a');
+  test('a match left with one player ends with rivalsLeft and closes', () => {
+    const { room, transport, scheduler, closed } = startMatch();
     room.leave('b');
-    expect(room.phaseKind).toBe('lobby');
-    expect(scheduler.stops).toBeGreaterThanOrEqual(2);
-    expect(room.join('c')).toBe('joined');
-    expect(room.playerIds).toEqual(['c']);
+    expect(room.phaseKind).toBe('closed');
+    expect(scheduler.stops).toBe(1);
+    expect(closed).toEqual([room]);
+    expect(transport.of('b', 'matchEnded')).toHaveLength(0);
+    const ended = transport.of('a', 'matchEnded');
+    expect(ended).toHaveLength(1);
+    const payload = ended[0]!.args[0] as MatchEnded;
+    expect(payload.reason).toBe('rivalsLeft');
+    expect(payload.scores.map((s) => s.id)).toEqual(['a']);
+    // Closing is final: later calls change nothing.
+    room.leave('a');
+    room.markReady('a');
+    expect(closed).toHaveLength(1);
   });
 
-  test('last player leaving during playing returns to lobby', () => {
-    const { room } = startMatch();
-    room.leave('a');
+  test('a lobby closes once everyone leaves, but not while someone waits', () => {
+    const { room, closed } = setup();
+    room.join('a', 'a');
+    room.join('b', 'b');
     room.leave('b');
     expect(room.phaseKind).toBe('lobby');
+    expect(closed).toEqual([]);
+    room.leave('a');
+    expect(room.phaseKind).toBe('closed');
+    expect(closed).toEqual([room]);
+    expect(room.join('c', 'c')).toBe('refused');
   });
 
   test('ready spam and unknown ids are harmless', () => {
     const { room, transport, scheduler } = setup();
-    room.join('a');
+    room.join('a', 'a');
     room.markReady('ghost');
     room.queueInput('ghost', frame(1));
     room.leave('ghost');
     for (let i = 0; i < 5; i++) room.markReady('a');
     expect(room.phaseKind).toBe('lobby');
-    room.join('b');
+    room.join('b', 'b');
     room.markReady('b');
     room.markReady('b');
     room.markReady('a');
@@ -408,21 +476,97 @@ describe('Room', () => {
 
   test('duplicate join is refused and does not duplicate the player', () => {
     const { room } = setup();
-    expect(room.join('a')).toBe('joined');
-    expect(room.join('a')).toBe('refused');
+    expect(room.join('a', 'a')).toBe('joined');
+    expect(room.join('a', 'a')).toBe('refused');
     expect(room.playerIds).toEqual(['a']);
   });
 });
 
 describe('RoomManager', () => {
-  test('returns the same default room', () => {
-    const ids: string[] = [];
-    const mgr = new RoomManager((id) => {
-      ids.push(id);
-      return new Room(id, new FakeTransport(), new FakeScheduler());
+  function manager() {
+    const transport = new FakeTransport();
+    const schedulers: FakeScheduler[] = [];
+    let next = 0;
+    const mgr = new RoomManager(
+      ({ id, name, onClosed }) => {
+        const scheduler = new FakeScheduler();
+        schedulers.push(scheduler);
+        return new Room({ id, name, transport, scheduler, onClosed });
+      },
+      () => `room-${++next}`,
+    );
+    return { mgr, transport, schedulers };
+  }
+
+  function lobbyOf(result: RoomResult): RoomLobby {
+    if (!result.ok) throw new Error(`expected ok, got ${result.error}`);
+    return result.lobby;
+  }
+
+  test('create joins the creator and lists the room', () => {
+    const { mgr } = manager();
+    const lobby = lobbyOf(mgr.create('a', 'Sala de Ana', 'Ana'));
+    expect(lobby).toEqual({
+      id: 'room-1',
+      name: 'Sala de Ana',
+      players: [{ id: 'a', nickname: 'Ana', ready: false }],
     });
-    expect(mgr.defaultRoom()).toBe(mgr.defaultRoom());
-    expect(mgr.defaultRoom().id).toBe('default');
-    expect(ids).toEqual(['default']);
+    expect(mgr.roomOf('a')?.id).toBe('room-1');
+    expect(mgr.list()).toEqual([
+      { id: 'room-1', name: 'Sala de Ana', players: 1, status: 'lobby' },
+    ]);
+  });
+
+  test('join adds the player; errors for unknown rooms, a second room or a running match', () => {
+    const { mgr } = manager();
+    mgr.create('a', 'Uno', 'Ana');
+    expect(mgr.join('b', 'nope', 'Beto')).toEqual({ ok: false, error: 'notFound' });
+    expect(lobbyOf(mgr.join('b', 'room-1', 'Beto')).players.map((p) => p.nickname)).toEqual([
+      'Ana',
+      'Beto',
+    ]);
+    expect(mgr.join('b', 'room-1', 'Beto')).toEqual({ ok: false, error: 'alreadyInRoom' });
+    expect(mgr.create('b', 'Dos', 'Beto')).toEqual({ ok: false, error: 'alreadyInRoom' });
+    mgr.roomOf('a')!.markReady('a');
+    mgr.roomOf('b')!.markReady('b');
+    expect(mgr.join('c', 'room-1', 'Carla')).toEqual({ ok: false, error: 'inProgress' });
+    expect(mgr.roomOf('c')).toBeUndefined();
+    expect(mgr.list()[0]!.status).toBe('playing');
+  });
+
+  test('an emptied room is forgotten and its player can join another', () => {
+    const { mgr } = manager();
+    mgr.create('a', 'Uno', 'Ana');
+    mgr.leave('a');
+    expect(mgr.list()).toEqual([]);
+    expect(mgr.roomOf('a')).toBeUndefined();
+    expect(mgr.join('a', 'room-1', 'Ana')).toEqual({ ok: false, error: 'notFound' });
+    expect(lobbyOf(mgr.create('a', 'Dos', 'Ana')).id).toBe('room-2');
+  });
+
+  test('a match ending forgets the room and frees the remaining player', () => {
+    const { mgr, transport, schedulers } = manager();
+    mgr.create('a', 'Uno', 'Ana');
+    mgr.join('b', 'room-1', 'Beto');
+    mgr.roomOf('a')!.markReady('a');
+    mgr.roomOf('b')!.markReady('b');
+    mgr.leave('b');
+    expect(transport.of('a', 'matchEnded')).toHaveLength(1);
+    expect(schedulers[0]!.stops).toBe(1);
+    expect(mgr.list()).toEqual([]);
+    expect(mgr.roomOf('a')).toBeUndefined();
+    expect(lobbyOf(mgr.create('a', 'Dos', 'Ana')).id).toBe('room-2');
+  });
+
+  test('refuses to create more than MAX_ROOMS rooms', () => {
+    const { mgr } = manager();
+    for (let i = 0; i < MAX_ROOMS; i++) expect(mgr.create(`p${i}`, 'Sala', 'P').ok).toBe(true);
+    expect(mgr.create('late', 'Sala', 'P')).toEqual({ ok: false, error: 'tooManyRooms' });
+    expect(mgr.roomOf('late')).toBeUndefined();
+  });
+
+  test('leave for a player in no room is harmless', () => {
+    const { mgr } = manager();
+    expect(() => mgr.leave('ghost')).not.toThrow();
   });
 });

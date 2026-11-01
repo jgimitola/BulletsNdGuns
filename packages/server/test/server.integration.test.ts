@@ -1,6 +1,15 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { io as connect, type Socket } from 'socket.io-client';
-import type { ClientToServerEvents, InputFrame, ServerToClientEvents, Snapshot } from '@bng/shared';
+import type {
+  ClientToServerEvents,
+  InputFrame,
+  LevelStarted,
+  MatchEnded,
+  RoomLobby,
+  RoomSummary,
+  ServerToClientEvents,
+  Snapshot,
+} from '@bng/shared';
 import { startServer } from '../src/index.ts';
 
 type Client = Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -35,36 +44,120 @@ afterEach(async () => {
   await server.close();
 });
 
+async function connected(c: Client): Promise<Client> {
+  if (!c.connected) await once(c, 'connect');
+  return c;
+}
+
+/** a creates a room, b joins it. Returns the room id. */
+async function sharedRoom(a: Client, b: Client): Promise<string> {
+  await Promise.all([connected(a), connected(b)]);
+  const created = await a.emitWithAck('createRoom', { name: 'Sala', nickname: 'Ana' });
+  if (!created.ok) throw new Error(created.error);
+  const joined = await b.emitWithAck('joinRoom', { roomId: created.lobby.id, nickname: 'Beto' });
+  if (!joined.ok) throw new Error(joined.error);
+  return created.lobby.id;
+}
+
+async function startMatch(a: Client, b: Client): Promise<string> {
+  const roomId = await sharedRoom(a, b);
+  const started = Promise.all([once(a, 'levelStarted'), once(b, 'levelStarted')]);
+  a.emit('ready');
+  b.emit('ready');
+  await started;
+  return roomId;
+}
+
+async function listRooms(): Promise<RoomSummary[]> {
+  const res = await fetch(`${url()}/api/rooms`);
+  return ((await res.json()) as { rooms: RoomSummary[] }).rooms;
+}
+
 describe('server integration', () => {
-  test('two players ready → level 1 starts; third connection gets matchInProgress', async () => {
+  test('nobody is in a room on connect; GET /api/rooms lists created rooms', async () => {
+    const a = await connected(newClient());
+    expect(await listRooms()).toEqual([]);
+    const created = await a.emitWithAck('createRoom', { name: ' Sala ', nickname: ' Ana ' });
+    expect(created).toEqual({
+      ok: true,
+      lobby: {
+        id: expect.any(String),
+        name: 'Sala',
+        players: [{ id: a.id, nickname: 'Ana', ready: false }],
+      },
+    });
+    const res = await fetch(`${url()}/api/rooms`);
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    expect(await listRooms()).toEqual([
+      { id: expect.any(String), name: 'Sala', players: 1, status: 'lobby' },
+    ]);
+  });
+
+  test('invalid requests are refused and leave the player roomless', async () => {
+    const a = await connected(newClient());
+    expect(await a.emitWithAck('createRoom', { name: '', nickname: 'Ana' })).toEqual({
+      ok: false,
+      error: 'invalid',
+    });
+    expect(await a.emitWithAck('joinRoom', { roomId: 'nope', nickname: 'Ana' })).toEqual({
+      ok: false,
+      error: 'notFound',
+    });
+    expect(await listRooms()).toEqual([]);
+  });
+
+  test('two players ready → level 1 starts with nicknames; a third cannot join', async () => {
     const a = newClient();
     const b = newClient();
-    await Promise.all([once(a, 'joined'), once(b, 'joined')]);
-    const startedA = once<{ levelIndex: number; snapshot: Snapshot }>(a, 'levelStarted');
-    const startedB = once<{ levelIndex: number; snapshot: Snapshot }>(b, 'levelStarted');
+    const lobbyA = once<RoomLobby>(a, 'lobbyUpdated');
+    const roomId = await sharedRoom(a, b);
+    expect((await lobbyA).players).toHaveLength(1);
+    const startedA = once<LevelStarted>(a, 'levelStarted');
+    const startedB = once<LevelStarted>(b, 'levelStarted');
     a.emit('ready');
     b.emit('ready');
     const [sa, sb] = await Promise.all([startedA, startedB]);
     expect(sa.levelIndex).toBe(0);
     expect(sb.levelIndex).toBe(0);
     expect(sa.snapshot.players).toHaveLength(2);
+    expect(sa.nicknames).toEqual({ [a.id as string]: 'Ana', [b.id as string]: 'Beto' });
 
-    const c = newClient();
-    const refused = once(c, 'matchInProgress');
-    const closed = once(c, 'disconnect');
-    await refused;
-    await closed;
-    expect(c.connected).toBe(false);
+    const c = await connected(newClient());
+    expect(await c.emitWithAck('joinRoom', { roomId, nickname: 'Carla' })).toEqual({
+      ok: false,
+      error: 'inProgress',
+    });
+    expect(c.connected).toBe(true);
+    expect(await listRooms()).toEqual([
+      { id: roomId, name: 'Sala', players: 2, status: 'playing' },
+    ]);
+  });
+
+  test('a rival disconnecting mid-match ends it: rivalsLeft, room gone, player free', async () => {
+    const a = newClient();
+    const b = newClient();
+    await startMatch(a, b);
+    const ended = once<MatchEnded>(a, 'matchEnded');
+    b.disconnect();
+    const payload = await ended;
+    expect(payload.reason).toBe('rivalsLeft');
+    expect(payload.scores.map((s) => s.id)).toEqual([a.id]);
+    expect(await listRooms()).toEqual([]);
+    const again = await a.emitWithAck('createRoom', { name: 'Otra', nickname: 'Ana' });
+    expect(again.ok).toBe(true);
+  });
+
+  test('leaveRoom in the lobby closes an emptied room', async () => {
+    const a = await connected(newClient());
+    await a.emitWithAck('createRoom', { name: 'Sala', nickname: 'Ana' });
+    a.emit('leaveRoom');
+    await expect.poll(listRooms).toEqual([]);
   });
 
   test('server decides hits: a shoots b across level 1', async () => {
     const a = newClient();
     const b = newClient();
-    await Promise.all([once(a, 'joined'), once(b, 'joined')]);
-    const started = Promise.all([once(a, 'levelStarted'), once(b, 'levelStarted')]);
-    a.emit('ready');
-    b.emit('ready');
-    await started;
+    await startMatch(a, b);
     const aId = a.id as string;
     const bId = b.id as string;
 
@@ -126,13 +219,15 @@ describe('server integration', () => {
     expect(pa?.ammo).toBe(1);
   }, 15000);
 
-  test('a client flooding inputs is disconnected; the other keeps receiving snapshots', async () => {
+  test('a client flooding inputs is disconnected; the others keep receiving snapshots', async () => {
     const a = newClient();
     const b = newClient();
-    await Promise.all([once(a, 'joined'), once(b, 'joined')]);
-    const started = Promise.all([once(a, 'levelStarted'), once(b, 'levelStarted')]);
-    a.emit('ready');
-    b.emit('ready');
+    // A third player keeps the match alive once a is gone.
+    const c = await connected(newClient());
+    const roomId = await sharedRoom(a, b);
+    await c.emitWithAck('joinRoom', { roomId, nickname: 'Carla' });
+    const started = Promise.all([a, b, c].map((x) => once(x, 'levelStarted')));
+    for (const x of [a, b, c]) x.emit('ready');
     await started;
 
     const kicked = once<string>(a, 'disconnect');
@@ -149,7 +244,7 @@ describe('server integration', () => {
       });
     });
     expect(b.connected).toBe(true);
-    expect(snaps.at(-1)!.players.map((p) => p.id)).toEqual([b.id]);
+    expect(snaps.at(-1)!.players.map((p) => p.id)).toEqual([b.id, c.id]);
   }, 10000);
 
   test('GET /healthz is ok and unknown paths redirect to /', async () => {
