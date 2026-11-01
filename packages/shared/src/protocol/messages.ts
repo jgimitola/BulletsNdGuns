@@ -1,6 +1,7 @@
 import type { BulletState, PlayerId, PlayerState } from '../simulation/player.ts';
 import type { WorldState } from '../simulation/world.ts';
 import type { InputFrame } from './input.ts';
+import type { RoomAck, RoomLobby } from './rooms.ts';
 
 export interface Snapshot {
   tick: number;
@@ -22,15 +23,32 @@ export interface MatchScores {
   scores: { id: PlayerId; score: number }[];
 }
 
-export interface ServerToClientEvents {
-  joined: () => void;
-  matchInProgress: () => void;
-  levelStarted: (payload: { levelIndex: number; snapshot: Snapshot }) => void;
-  snapshot: (snapshot: Snapshot) => void;
-  matchEnded: (payload: MatchScores) => void;
+/** `completed`: the last level was finished. `rivalsLeft`: everyone else left mid-match. */
+export type MatchEndReason = 'completed' | 'rivalsLeft';
+
+export interface MatchEnded extends MatchScores {
+  reason: MatchEndReason;
 }
 
+export interface LevelStarted {
+  levelIndex: number;
+  snapshot: Snapshot;
+  /** Nickname of every player in the match. Nobody joins mid-match, so it never grows. */
+  nicknames: Record<PlayerId, string>;
+}
+
+export interface ServerToClientEvents {
+  lobbyUpdated: (lobby: RoomLobby) => void;
+  levelStarted: (payload: LevelStarted) => void;
+  snapshot: (snapshot: Snapshot) => void;
+  matchEnded: (payload: MatchEnded) => void;
+}
+
+/** Payloads are `unknown`: the server validates them with the parse functions. */
 export interface ClientToServerEvents {
+  createRoom: (request: unknown, ack: (result: RoomAck) => void) => void;
+  joinRoom: (request: unknown, ack: (result: RoomAck) => void) => void;
+  leaveRoom: () => void;
   ready: () => void;
   input: (frame: InputFrame) => void;
 }
