@@ -8,8 +8,8 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "echo \"dev: not configured yet\"",
-    "build": "echo \"build: not configured yet\"",
+    "dev": "concurrently -n server,client -c blue,green \"npm run dev -w @bng/server\" \"npm run dev -w @bng/client\"",
+    "build": "npm run build -w @bng/client",
     "start": "node packages/server/src/index.ts",
     "test": "vitest run",
     "lint": "eslint \"packages/*/{src,test}/**/*.ts\"",

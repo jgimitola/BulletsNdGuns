@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "vite",
+    "build": "vite build",
     "test": "vitest run --passWithNoTests --root ../.. --project @bng/client",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
