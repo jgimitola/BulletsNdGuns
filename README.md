@@ -23,6 +23,8 @@ Originally a university project (Data Structures course) by Jesús Imitola, Sant
 
 Production: `npm run build && npm start`. Environment: `PORT` (default 3000), `CLIENT_DIST` (default `packages/client/dist`). `GET /healthz` returns `{"status":"ok"}`.
 
+The client build is split so the first screen only needs our entry code, React and a small vendor chunk. Phaser and the scenes (`src/game.ts`) start downloading at page load but are only booted once the socket connects, and the room list (with TanStack Query) is fetched when the menu shows. The build also writes `.br` and `.gz` copies of text files; the server sends those to browsers that accept them and falls back to the original file otherwise.
+
 Docker:
 
 ```sh

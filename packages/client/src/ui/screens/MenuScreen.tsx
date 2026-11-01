@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { NICKNAME_MAX_LENGTH, parseNickname } from '@bng/shared';
 import { t } from '../../i18n/index.ts';
 import { CreditsDialog } from '../dialogs/CreditsDialog.tsx';
@@ -5,11 +6,16 @@ import { HowToPlayDialog } from '../dialogs/HowToPlayDialog.tsx';
 import { playHoverSound } from '../hover-sound.ts';
 import { LanguageToggle } from '../LanguageToggle.tsx';
 import { useUi, useUiStore } from '../UiStoreContext.tsx';
+import { loadRoomsScreen } from './lazy-screens.ts';
 
 export function MenuScreen() {
   const store = useUiStore();
   const nickname = useUi((s) => s.nickname);
   const valid = parseNickname(nickname) !== null;
+  // The room list is the next screen: fetch its chunk now so JUGAR opens it without a wait.
+  useEffect(() => {
+    void loadRoomsScreen();
+  }, []);
   return (
     <div className="screen screen--menu screen--above-strip interactive">
       <div className="brick-strip" />

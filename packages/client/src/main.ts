@@ -1,11 +1,8 @@
 import '@fontsource/tiny5';
 import '@fontsource/press-start-2p';
 import './ui/styles.css';
-import Phaser from 'phaser';
-import { gameConfig } from './game-config.ts';
 import { detectLocale, setLocale, type Locale } from './i18n/index.ts';
 import { NetworkClient } from './net/network-client.ts';
-import { SERVICES_KEY, type GameServices } from './services.ts';
 import { mountUi } from './ui/mount.tsx';
 import { createUiStore } from './ui/store.ts';
 
@@ -57,19 +54,24 @@ const uiRoot = document.getElementById('ui');
 if (!uiRoot) throw new Error('#ui element is missing from index.html');
 mountUi(uiRoot, ui);
 
-let game: Phaser.Game | undefined;
+// Phaser and the scenes are most of the JavaScript: fetch them now, in parallel with the socket
+// connection, and only boot them once connected.
+const gameModule = import('./game.ts');
+
+let connectedBefore = false;
 
 network.onConnect(() => {
   // A second connect means socket.io reconnected under a new socket id: the server has forgotten
   // this player and any room they were in, so start over from a clean page.
-  if (game) {
+  if (connectedBefore) {
     window.location.reload();
     return;
   }
+  connectedBefore = true;
   if (network.playerId) ui.getState().setPlayerId(network.playerId);
-  game = new Phaser.Game(gameConfig);
-  const services: GameServices = { network, ui };
-  game.registry.set(SERVICES_KEY, services);
+  // The loader scene takes over this screen once Phaser runs.
+  ui.getState().setScreen('loading');
+  void gameModule.then(({ startGame }) => startGame({ network, ui }));
 });
 
 network.on('lobbyUpdated', (lobby) => ui.getState().setLobby(lobby));

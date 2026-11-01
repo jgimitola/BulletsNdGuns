@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import type { RoomSummary } from '@bng/shared';
 import { t } from '../../i18n/index.ts';
 import { fetchRooms, ROOMS_QUERY_KEY } from '../../net/rooms-api.ts';
@@ -9,7 +9,20 @@ import { useUi, useUiStore } from '../UiStoreContext.tsx';
 
 const ROOMS_POLL_MS = 3000;
 
-export function RoomsScreen() {
+// Only the room table uses HTTP; it polls on its own, so one failed fetch need not be retried.
+// Module scope keeps the cache across visits to this screen.
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1 } } });
+
+/** Entry point of the lazily loaded room list chunk (see lazy-screens.ts). */
+export function RoomsScreenWithQuery() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <RoomsScreen />
+    </QueryClientProvider>
+  );
+}
+
+function RoomsScreen() {
   const store = useUiStore();
   const pending = useUi((s) => s.roomPending);
   const rooms = useQuery({

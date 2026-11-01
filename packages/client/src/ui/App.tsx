@@ -1,10 +1,11 @@
+import { Suspense } from 'react';
 import { ConnectingScreen } from './screens/ConnectingScreen.tsx';
 import { GameOverScreen } from './screens/GameOverScreen.tsx';
 import { HudScreen } from './screens/HudScreen.tsx';
 import { LoadingScreen } from './screens/LoadingScreen.tsx';
 import { LobbyScreen } from './screens/LobbyScreen.tsx';
 import { MenuScreen } from './screens/MenuScreen.tsx';
-import { RoomsScreen } from './screens/RoomsScreen.tsx';
+import { LazyRoomsScreen } from './screens/lazy-screens.ts';
 import { useUi } from './UiStoreContext.tsx';
 
 export function App() {
@@ -20,7 +21,12 @@ export function App() {
     case 'menu':
       return <MenuScreen />;
     case 'rooms':
-      return <RoomsScreen />;
+      return (
+        // Normally prefetched from the menu; the fallback only shows on a slow connection.
+        <Suspense fallback={<div className="screen screen--menu" />}>
+          <LazyRoomsScreen />
+        </Suspense>
+      );
     case 'lobby':
       return <LobbyScreen />;
     case 'level':
