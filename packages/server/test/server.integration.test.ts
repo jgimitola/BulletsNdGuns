@@ -72,7 +72,12 @@ describe('server integration', () => {
     //  walk: b holds left until a snapshot shows it well away from its spawn
     //  fire: a sends one shoot frame, b stands still
     //  Success: after firing, two snapshots show b back at its spawn (the server respawns the victim).
-    const state = { phase: 'walk' as 'walk' | 'fire', shootPending: false, awayX: 0, respawnSnapshots: 0 };
+    const state = {
+      phase: 'walk' as 'walk' | 'fire',
+      shootPending: false,
+      awayX: 0,
+      respawnSnapshots: 0,
+    };
     let seqA = 0;
     let seqB = 0;
     let spawnX: number | undefined;
@@ -97,6 +102,7 @@ describe('server integration', () => {
 
     const mk = (seq: number, over: Partial<InputFrame>): InputFrame => ({
       seq,
+      level: 0,
       left: false,
       right: false,
       jump: false,
@@ -120,6 +126,32 @@ describe('server integration', () => {
     expect(pa?.ammo).toBe(1);
   }, 15000);
 
+  test('a client flooding inputs is disconnected; the other keeps receiving snapshots', async () => {
+    const a = newClient();
+    const b = newClient();
+    await Promise.all([once(a, 'joined'), once(b, 'joined')]);
+    const started = Promise.all([once(a, 'levelStarted'), once(b, 'levelStarted')]);
+    a.emit('ready');
+    b.emit('ready');
+    await started;
+
+    const kicked = once<string>(a, 'disconnect');
+    for (let seq = 1; seq <= 400; seq++) {
+      a.emit('input', { seq, level: 0, left: false, right: false, jump: false, shoot: false });
+    }
+    expect(await kicked).toBe('io server disconnect');
+
+    const snaps: Snapshot[] = [];
+    await new Promise<void>((resolve) => {
+      b.on('snapshot', (snap) => {
+        snaps.push(snap);
+        if (snaps.length === 5) resolve();
+      });
+    });
+    expect(b.connected).toBe(true);
+    expect(snaps.at(-1)!.players.map((p) => p.id)).toEqual([b.id]);
+  }, 10000);
+
   test('GET /healthz is ok and unknown paths redirect to /', async () => {
     const ok = await fetch(`${url()}/healthz`);
     expect(ok.status).toBe(200);
@@ -127,5 +159,12 @@ describe('server integration', () => {
     const res = await fetch(`${url()}/nope/whatever`, { redirect: 'manual' });
     expect(res.status).toBe(302);
     expect(res.headers.get('location')).toBe('/');
+  });
+
+  test('GET / without a client build is a 404, not a redirect loop', async () => {
+    const res = await fetch(`${url()}/`, { redirect: 'manual' });
+    expect(res.status).toBe(404);
+    expect(res.headers.get('location')).toBeNull();
+    expect(await res.text()).toContain('npm run build');
   });
 });

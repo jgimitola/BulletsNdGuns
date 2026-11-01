@@ -1,7 +1,11 @@
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { Server } from 'socket.io';
-import type { ClientToServerEvents, ServerToClientEvents } from '@bng/shared';
+import {
+  MAX_SOCKET_MESSAGE_BYTES,
+  type ClientToServerEvents,
+  type ServerToClientEvents,
+} from '@bng/shared';
 import { loadConfig, type ServerConfig } from './config.ts';
 import { createApp } from './http/create-app.ts';
 import { attachSocketGateway, createSocketTransport } from './net/socket-gateway.ts';
@@ -13,7 +17,9 @@ export async function startServer(
   config: ServerConfig,
 ): Promise<{ port: number; close(): Promise<void> }> {
   const httpServer = createServer(createApp(config));
-  const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer);
+  const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
+    maxHttpBufferSize: MAX_SOCKET_MESSAGE_BYTES,
+  });
   const loops: TickLoop[] = [];
   const transport = createSocketTransport(io);
   const rooms = new RoomManager((id) => {
@@ -42,6 +48,18 @@ export async function startServer(
 }
 
 if (import.meta.main) {
-  const { port } = await startServer(loadConfig());
-  console.log(`BulletsNdGuns server listening on :${port}`);
+  const server = await startServer(loadConfig());
+  console.log(`BulletsNdGuns server listening on :${server.port}`);
+  const shutdown = (signal: NodeJS.Signals): void => {
+    console.log(`${signal} received, shutting down`);
+    server.close().then(
+      () => process.exit(0),
+      (err: unknown) => {
+        console.error(err);
+        process.exit(1);
+      },
+    );
+  };
+  process.once('SIGTERM', shutdown);
+  process.once('SIGINT', shutdown);
 }

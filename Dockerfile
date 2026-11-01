@@ -10,12 +10,15 @@ FROM node:24-alpine
 WORKDIR /app
 ENV NODE_ENV=production PORT=3000
 COPY package.json package-lock.json ./
+# Every workspace manifest must be present for `npm ci` to accept the lockfile; only the server's
+# production dependencies are installed (plus the @bng/shared workspace link it depends on).
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/server/package.json ./packages/server/
 COPY packages/client/package.json ./packages/client/
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev -w @bng/server && npm cache clean --force
 COPY packages/shared/src ./packages/shared/src
 COPY packages/server/src ./packages/server/src
 COPY --from=build /app/packages/client/dist ./packages/client/dist
+USER node
 EXPOSE 3000
 CMD ["node", "packages/server/src/index.ts"]
