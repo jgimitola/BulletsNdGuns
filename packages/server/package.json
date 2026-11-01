@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest run --passWithNoTests --root ../.. --project @bng/server",
+    "dev": "node --watch src/index.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {

@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "echo \"dev: not configured yet\"",
     "build": "echo \"build: not configured yet\"",
-    "start": "echo \"start: not configured yet\"",
+    "start": "node packages/server/src/index.ts",
     "test": "vitest run",
     "lint": "eslint \"packages/*/{src,test}/**/*.ts\"",
     "typecheck": "npm run typecheck --workspaces --if-present",
