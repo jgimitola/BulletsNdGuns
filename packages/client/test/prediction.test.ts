@@ -7,13 +7,14 @@ import {
   stepWorld,
   toSnapshot,
   type InputFrame,
+  type InputKeys,
   type PlayerState,
   type Snapshot,
 } from '@bng/shared';
 import { LocalPlayerPredictor } from '../src/net/prediction.ts';
 
 const level = getLevel(0);
-const keys = (o: Partial<Omit<InputFrame, 'seq'>> = {}): Omit<InputFrame, 'seq'> => ({
+const keys = (o: Partial<InputKeys> = {}): InputKeys => ({
   ...NEUTRAL_INPUT,
   ...o,
 });
@@ -31,6 +32,7 @@ function snap(player: PlayerState, ackSeq: number, levelIndex = 0): Snapshot {
     ackSeq,
     players: [player],
     bullets: [],
+    shots: [],
     ammoPickupIds: [],
     coinIds: [],
   };
@@ -41,6 +43,12 @@ describe('LocalPlayerPredictor', () => {
     const { predictor } = setup();
     expect(predictor.applyInput(keys()).frame.seq).toBe(1);
     expect(predictor.applyInput(keys()).frame.seq).toBe(2);
+  });
+
+  it('tags frames with its level', () => {
+    const level1 = createWorld([{ id: 'me', side: 'left' }]);
+    const predictor = new LocalPlayerPredictor('me', 2, level1.players[0] as PlayerState);
+    expect(predictor.applyInput(keys()).frame.level).toBe(2);
   });
 
   it('continues numbering from firstSeq', () => {

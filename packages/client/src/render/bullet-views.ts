@@ -13,9 +13,7 @@ export class BulletViews {
     this.depth = depth;
   }
 
-  /** Returns how many bullets appeared that were not shown before. */
-  sync(bullets: readonly BulletState[]): number {
-    let appeared = 0;
+  sync(bullets: readonly BulletState[]): void {
     const live = new Set<string>();
     for (const b of bullets) {
       live.add(b.id);
@@ -31,13 +29,11 @@ export class BulletViews {
           .setScale(BULLET_SCALE, BULLET_SCALE)
           .setDepth(this.depth),
       );
-      appeared++;
     }
     for (const [id, view] of this.views) {
       if (live.has(id)) continue;
       view.destroy();
       this.views.delete(id);
     }
-    return appeared;
   }
 }

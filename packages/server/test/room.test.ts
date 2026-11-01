@@ -1,11 +1,13 @@
 import { describe, expect, test } from 'vitest';
 import {
   LEVELS,
+  NEVER_SHOT_TICKS,
   STARTING_AMMO,
   getLevel,
   type InputFrame,
   type PlayerId,
   type ServerToClientEvents,
+  type Snapshot,
   type WorldState,
 } from '@bng/shared';
 import { Room, type RoomTransport, type TickScheduler } from '../src/rooms/room.ts';
@@ -58,6 +60,7 @@ function startMatch(ids: PlayerId[] = ['a', 'b']) {
 
 const frame = (seq: number, keys: Partial<InputFrame> = {}): InputFrame => ({
   seq,
+  level: 0,
   left: false,
   right: false,
   jump: false,
@@ -71,6 +74,10 @@ function ticks(room: Room, n: number): void {
 
 function xOf(room: Room, id: PlayerId): number {
   return room.worldForTest()!.players.find((p) => p.id === id)!.x;
+}
+
+function snapshots(t: FakeTransport, id: PlayerId): Snapshot[] {
+  return t.of(id, 'snapshot').map((s) => s.args[0] as Snapshot);
 }
 
 function snapshotAck(t: FakeTransport, id: PlayerId): number {
@@ -206,13 +213,91 @@ describe('Room', () => {
     const { room } = startMatch();
     room.queueInput('a', frame(1, { right: true, shoot: true }));
     const xs: number[] = [xOf(room, 'a')];
-    for (let i = 0; i < 12; i++) {
+    room.tick();
+    xs.push(xOf(room, 'a'));
+    const world = room.worldForTest()!;
+    expect(world.players.find((p) => p.id === 'a')!.ammo).toBe(STARTING_AMMO - 1);
+    // Plenty of ammo and no cooldown: a reused shoot key would fire again on the very next tick.
+    room.__setWorldForTest({
+      ...world,
+      players: world.players.map((p) =>
+        p.id === 'a' ? { ...p, ammo: 5, ticksSinceShot: NEVER_SHOT_TICKS } : p,
+      ),
+    });
+    for (let i = 0; i < 11; i++) {
       room.tick();
       xs.push(xOf(room, 'a'));
     }
     for (let t = 1; t <= 7; t++) expect(xs[t]).toBeGreaterThan(xs[t - 1]!);
     const pa = room.worldForTest()!.players.find((p) => p.id === 'a')!;
-    expect(pa.ammo).toBe(STARTING_AMMO - 1);
+    expect(pa.ammo).toBe(5);
+  });
+
+  test('a bullet fired and destroyed between snapshots still arrives in the next shots', () => {
+    const { room, transport } = startMatch();
+    room.tick();
+    const world = room.worldForTest()!;
+    const b = world.players.find((p) => p.id === 'b')!;
+    // a stands just left of b, facing it: the bullet hits b before the tick-3 snapshot.
+    room.__setWorldForTest({
+      ...world,
+      players: world.players.map((p) =>
+        p.id === 'a' ? { ...p, x: b.x - 20, y: b.y, facing: 'right' } : p,
+      ),
+    });
+    room.queueInput('a', frame(1, { shoot: true }));
+    ticks(room, 2);
+    for (const id of ['a', 'b']) {
+      const [first] = snapshots(transport, id);
+      expect(first!.tick).toBe(3);
+      expect(first!.bullets).toEqual([]);
+      expect(first!.shots.map((s) => [s.id, s.ownerId])).toEqual([['a:1', 'a']]);
+    }
+    ticks(room, 3);
+    expect(snapshots(transport, 'a')[1]!.shots).toEqual([]);
+    const started = transport.of('a', 'levelStarted')[0]!.args[0] as { snapshot: Snapshot };
+    expect(started.snapshot.shots).toEqual([]);
+  });
+
+  test('lobby frames do not apply once the match starts', () => {
+    const { room } = setup();
+    room.join('a');
+    room.join('b');
+    room.queueInput('a', frame(1, { right: true }));
+    room.markReady('a');
+    room.markReady('b');
+    room.tick();
+    // Where a settles with no input (see the shared world tests).
+    const spawnX = xOf(room, 'a');
+    expect(spawnX).toBeCloseTo(26.45, 6);
+    expect(room.ackSeqForTest('a')).toBe(0);
+    // Still stale afterwards.
+    room.queueInput('a', frame(1, { right: true }));
+    room.tick();
+    expect(xOf(room, 'a')).toBe(spawnX);
+    room.queueInput('a', frame(2, { right: true }));
+    room.tick();
+    expect(xOf(room, 'a')).toBeGreaterThan(spawnX);
+  });
+
+  test('a frame tagged with the previous level is dropped but still advances seq', () => {
+    const { room } = startMatch();
+    placeOnPortal(room, 'a');
+    room.tick();
+    expect(room.worldForTest()!.levelIndex).toBe(1);
+    const spawnX = xOf(room, 'a');
+    room.queueInput('a', frame(7, { right: true, level: 0 }));
+    room.tick();
+    expect(xOf(room, 'a')).toBe(spawnX);
+    expect(room.ackSeqForTest('a')).toBe(0);
+    // seq 7 was consumed by the dropped frame, so a level-1 copy of it is stale.
+    room.queueInput('a', frame(7, { right: true, level: 1 }));
+    room.tick();
+    expect(xOf(room, 'a')).toBe(spawnX);
+    room.queueInput('a', frame(8, { right: true, level: 1 }));
+    room.tick();
+    expect(xOf(room, 'a')).toBeGreaterThan(spawnX);
+    expect(room.ackSeqForTest('a')).toBe(8);
   });
 
   test('level start clears queued frames but keeps seq staleness and ackSeq', () => {
@@ -227,10 +312,10 @@ describe('Room', () => {
     expect(xOf(room, 'a')).toBe(spawnX);
     expect(room.ackSeqForTest('a')).toBe(1);
     // Old seqs stay stale; a fresh one is accepted.
-    room.queueInput('a', frame(3, { right: true }));
+    room.queueInput('a', frame(3, { right: true, level: 1 }));
     room.tick();
     expect(xOf(room, 'a')).toBe(spawnX);
-    room.queueInput('a', frame(6, { right: true }));
+    room.queueInput('a', frame(6, { right: true, level: 1 }));
     room.tick();
     expect(room.ackSeqForTest('a')).toBe(6);
     expect(transport.of('a', 'levelStarted')).toHaveLength(2);

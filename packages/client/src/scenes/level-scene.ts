@@ -16,6 +16,7 @@ import { KeyboardInput } from '../input/keyboard-input.ts';
 import type { NetworkClient } from '../net/network-client.ts';
 import { OwnBulletTracker } from '../net/own-bullets.ts';
 import { LocalPlayerPredictor } from '../net/prediction.ts';
+import { RemoteShotTracker } from '../net/remote-shots.ts';
 import { SnapshotBuffer } from '../net/snapshot-buffer.ts';
 import { BulletViews } from '../render/bullet-views.ts';
 import { Depth } from '../render/depth.ts';
@@ -39,6 +40,7 @@ interface LevelSession {
   predictor: LocalPlayerPredictor;
   buffer: SnapshotBuffer;
   ownBullets: OwnBulletTracker;
+  remoteShots: RemoteShotTracker;
   localView: PlayerView;
   remoteViews: Map<PlayerId, PlayerView>;
   ownBulletViews: BulletViews;
@@ -99,6 +101,7 @@ export class LevelScene extends Phaser.Scene {
       predictor: new LocalPlayerPredictor(playerId, levelIndex, me, network.lastInputSeq + 1),
       buffer,
       ownBullets: new OwnBulletTracker(playerId, levelIndex),
+      remoteShots: new RemoteShotTracker(playerId, levelIndex),
       localView: new PlayerView(this, 'player', me, Depth.localPlayer),
       remoteViews: new Map(),
       ownBulletViews: new BulletViews(this, Depth.ownBullets),
@@ -117,7 +120,9 @@ export class LevelScene extends Phaser.Scene {
         if (s.levelIndex !== levelIndex) return;
         session.predictor.reconcile(s);
         session.ownBullets.reconcile(s);
-        session.buffer.push(s, performance.now());
+        const now = performance.now();
+        session.buffer.push(s, now);
+        session.remoteShots.push(s, now);
       }),
       network.on('levelStarted', (payload) => {
         this.scene.start('level', payload);
@@ -163,16 +168,15 @@ export class LevelScene extends Phaser.Scene {
     session.hud.update(local.ammo, local.score);
 
     // The buffer starts with the level's initial snapshot, so this only fails if that was never pushed.
-    const sampled = session.buffer.sample(performance.now() - INTERPOLATION_DELAY_MS);
+    const renderAt = performance.now() - INTERPOLATION_DELAY_MS;
+    if (session.remoteShots.takeDue(renderAt) > 0) session.shotSound.play();
+    const sampled = session.buffer.sample(renderAt);
     if (!sampled) return;
     this.syncRemotePlayers(
       session,
       sampled.players.filter((p) => p.id !== session.playerId),
     );
-    const appeared = session.remoteBulletViews.sync(
-      sampled.bullets.filter((b) => b.ownerId !== session.playerId),
-    );
-    if (appeared > 0) session.shotSound.play();
+    session.remoteBulletViews.sync(sampled.bullets.filter((b) => b.ownerId !== session.playerId));
     session.pickups.sync(sampled.latest.ammoPickupIds, sampled.latest.coinIds);
   }
 

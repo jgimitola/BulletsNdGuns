@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { InputFrame } from '@bng/shared';
+import type { InputKeys } from '@bng/shared';
 
 type ControlKey = 'W' | 'A' | 'D' | 'SPACE';
 
@@ -20,7 +20,7 @@ export class KeyboardInput {
     }) as Record<ControlKey, Phaser.Input.Keyboard.Key>;
   }
 
-  read(): Omit<InputFrame, 'seq'> {
+  read(): InputKeys {
     return {
       left: this.keys.A.isDown,
       right: this.keys.D.isDown,

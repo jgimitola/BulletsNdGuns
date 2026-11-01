@@ -27,3 +27,9 @@ export const INPUT_QUEUE_LIMIT = 8,
 export const PLATFORM_LAYER = 'Plataformas',
   TILESET_NAME = 'p1LevelTS';
 export const LEVEL_BACKGROUND = 'rgb(250, 143, 67)';
+/** A remote player moving further than this between two snapshots (a respawn) snaps instead of gliding. */
+export const REMOTE_SNAP_DISTANCE = 64;
+/** Socket.io `maxHttpBufferSize`: largest message a client may send. */
+export const MAX_SOCKET_MESSAGE_BYTES = 1024;
+/** A socket sending more than this many times TICK_RATE inputs in a rolling second is disconnected. */
+export const INPUT_RATE_LIMIT_FACTOR = 3;

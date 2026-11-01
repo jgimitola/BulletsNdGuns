@@ -3,6 +3,7 @@ import {
   stepPlayer,
   type BulletState,
   type InputFrame,
+  type InputKeys,
   type Level,
   type PlayerId,
   type PlayerState,
@@ -42,12 +43,13 @@ export class LocalPlayerPredictor {
     return this.unacked;
   }
 
-  applyInput(keys: Omit<InputFrame, 'seq'>): {
+  applyInput(keys: InputKeys): {
     frame: InputFrame;
     jumped: boolean;
     bullet: BulletState | null;
   } {
-    const frame: InputFrame = { ...keys, seq: this.nextSeq++ };
+    // Tagged with the level so the server can drop it if it arrives after a level change.
+    const frame: InputFrame = { ...keys, seq: this.nextSeq++, level: this.levelIndex };
     const result = stepPlayer(this.current, frame, this.level);
     this.current = result.player;
     this.unacked.push(frame);

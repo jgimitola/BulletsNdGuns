@@ -15,6 +15,7 @@ const snap = (ackSeq: number, bullets: BulletState[], levelIndex = 0): Snapshot 
   ackSeq,
   players: [],
   bullets,
+  shots: [],
   ammoPickupIds: [],
   coinIds: [],
 });

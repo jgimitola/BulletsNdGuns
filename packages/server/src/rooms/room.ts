@@ -10,7 +10,9 @@ import {
   startLevel,
   stepWorld,
   toSnapshot,
+  type BulletState,
   type InputFrame,
+  type InputKeys,
   type MatchScores,
   type PlayerId,
   type ServerToClientEvents,
@@ -37,15 +39,13 @@ export type RoomPhase =
   | { kind: 'playing'; world: WorldState }
   | { kind: 'gameOver'; scores: MatchScores['scores'] };
 
-type Keys = Omit<InputFrame, 'seq'>;
-
 interface Participant {
   side: Side;
   queue: InputFrame[];
   /** Highest seq ever queued; anything at or below is stale. */
   lastQueuedSeq: number;
   /** Keys of the last frame taken from the queue, reused while the queue starves. */
-  lastKeys: Keys;
+  lastKeys: InputKeys;
   emptyTicks: number;
   /** Seq of the last frame actually taken from the queue. */
   ackSeq: number;
@@ -57,6 +57,8 @@ export class Room {
   private readonly scheduler: TickScheduler;
   private phase: RoomPhase = { kind: 'lobby', ready: new Set() };
   private readonly participants = new Map<PlayerId, Participant>();
+  /** Bullets fired since the last snapshot, sent with the next one so every shot is heard. */
+  private pendingShots: BulletState[] = [];
 
   constructor(id: string, transport: RoomTransport, scheduler: TickScheduler) {
     this.id = id;
@@ -118,6 +120,8 @@ export class Room {
     const p = this.participants.get(playerId);
     if (!p || frame.seq <= p.lastQueuedSeq) return;
     p.lastQueuedSeq = frame.seq;
+    // Frames sampled in another level (in flight across a level change) or in the lobby are dropped.
+    if (this.phase.kind !== 'playing' || frame.level !== this.phase.world.levelIndex) return;
     p.queue.push(frame);
     if (p.queue.length > INPUT_QUEUE_LIMIT) p.queue.shift();
   }
@@ -125,8 +129,9 @@ export class Room {
   /** One simulation tick; the scheduler calls it at 60 Hz. */
   tick(): void {
     if (this.phase.kind !== 'playing') return;
-    const stepped = stepWorld(this.phase.world, this.takeInputs());
+    const stepped = stepWorld(this.phase.world, this.takeInputs(this.phase.world.levelIndex));
     let world = stepped.world;
+    for (const e of stepped.events) if (e.type === 'shot') this.pendingShots.push(e.bullet);
     const completed = stepped.events.find((e) => e.type === 'levelCompleted');
     if (completed) {
       if (isLastLevel(world.levelIndex)) {
@@ -138,19 +143,16 @@ export class Room {
       }
       world = startLevel(world, world.levelIndex + 1);
       this.phase = { kind: 'playing', world };
-      for (const p of this.participants.values()) {
-        p.lastKeys = NEUTRAL_INPUT;
-        p.emptyTicks = 0;
-        // Frames sent during the old level must not apply in the new one; lastQueuedSeq stays.
-        p.queue.length = 0;
-      }
+      this.resetInputs();
       this.sendLevelStarted(world);
       return;
     }
     this.phase = { kind: 'playing', world };
     if (world.tick % SNAPSHOT_EVERY_TICKS === 0) {
+      const shots = this.pendingShots;
+      this.pendingShots = [];
       this.broadcast((id) =>
-        this.transport.send(id, 'snapshot', toSnapshot(world, this.ackOf(id))),
+        this.transport.send(id, 'snapshot', toSnapshot(world, this.ackOf(id), shots)),
       );
     }
   }
@@ -177,11 +179,22 @@ export class Room {
     for (const id of this.participants.keys()) if (!ready.has(id)) return;
     const world = createWorld([...this.participants].map(([id, p]) => ({ id, side: p.side })));
     this.phase = { kind: 'playing', world };
+    this.resetInputs();
     this.sendLevelStarted(world);
     this.scheduler.start(() => this.tick());
   }
 
-  private takeInputs(): Map<PlayerId, InputFrame> {
+  /** At every level start: nothing queued or held before it may apply in it. lastQueuedSeq stays. */
+  private resetInputs(): void {
+    this.pendingShots = [];
+    for (const p of this.participants.values()) {
+      p.lastKeys = NEUTRAL_INPUT;
+      p.emptyTicks = 0;
+      p.queue.length = 0;
+    }
+  }
+
+  private takeInputs(level: number): Map<PlayerId, InputFrame> {
     const inputs = new Map<PlayerId, InputFrame>();
     for (const [id, p] of this.participants) {
       const next = p.queue.shift();
@@ -199,6 +212,7 @@ export class Room {
           left: reuse && p.lastKeys.left,
           right: reuse && p.lastKeys.right,
           seq: p.ackSeq,
+          level,
         });
       }
     }

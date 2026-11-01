@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import type { Rect } from '../src/geometry.ts';
 import { getLevel } from '../src/levels/level-registry.ts';
-import { NEUTRAL_INPUT, type InputFrame } from '../src/protocol/input.ts';
+import { NEUTRAL_INPUT, type InputFrame, type InputKeys } from '../src/protocol/input.ts';
 import {
   bodyBox,
   createPlayer,
@@ -15,8 +15,8 @@ const L1 = getLevel(0);
 const L3 = getLevel(2);
 
 let seq = 0;
-function input(keys: Partial<Omit<InputFrame, 'seq'>> = {}): InputFrame {
-  return { ...NEUTRAL_INPUT, ...keys, seq: ++seq };
+function input(keys: Partial<InputKeys> = {}): InputFrame {
+  return { ...NEUTRAL_INPUT, ...keys, seq: ++seq, level: 0 };
 }
 
 function settle(p: PlayerState): PlayerState {
@@ -33,11 +33,7 @@ function rect(x: number, y: number, width: number, height: number): Rect {
 }
 
 /** Runs `ticks` steps with the same keys held, returning every step result. */
-function run(
-  p: PlayerState,
-  ticks: number,
-  keys: Partial<Omit<InputFrame, 'seq'>>,
-): PlayerStepResult[] {
+function run(p: PlayerState, ticks: number, keys: Partial<InputKeys>): PlayerStepResult[] {
   const results: PlayerStepResult[] = [];
   let current = p;
   for (let i = 0; i < ticks; i++) {

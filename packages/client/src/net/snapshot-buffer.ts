@@ -1,4 +1,9 @@
-import type { BulletState, PlayerState, Snapshot } from '@bng/shared';
+import {
+  REMOTE_SNAP_DISTANCE,
+  type BulletState,
+  type PlayerState,
+  type Snapshot,
+} from '@bng/shared';
 
 const HISTORY_MS = 1000;
 
@@ -56,7 +61,9 @@ export class SnapshotBuffer {
     const olderPlayers = new Map(a.snapshot.players.map((p) => [p.id, p]));
     const players = b.snapshot.players.map((np) => {
       const op = olderPlayers.get(np.id);
-      return op ? { ...op, x: lerp(op.x, np.x, t), y: lerp(op.y, np.y, t) } : np;
+      // A jump this large is a respawn: show the new position rather than gliding across the map.
+      if (!op || Math.hypot(np.x - op.x, np.y - op.y) > REMOTE_SNAP_DISTANCE) return np;
+      return { ...op, x: lerp(op.x, np.x, t), y: lerp(op.y, np.y, t) };
     });
     const olderBullets = new Map(a.snapshot.bullets.map((x) => [x.id, x]));
     const bullets = b.snapshot.bullets.map((nb) => {

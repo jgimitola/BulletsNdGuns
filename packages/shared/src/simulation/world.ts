@@ -80,7 +80,7 @@ export function stepWorld(
   const stepped: PlayerState[] = [];
   const spawned: BulletState[] = [];
   for (const p of world.players) {
-    const input = inputs.get(p.id) ?? { seq: 0, ...NEUTRAL_INPUT };
+    const input = inputs.get(p.id) ?? { seq: 0, level: world.levelIndex, ...NEUTRAL_INPUT };
     const r = stepPlayer(p, input, level);
     stepped.push(r.player);
     if (r.jumped) events.push({ type: 'jumped', playerId: p.id });
@@ -89,7 +89,7 @@ export function stepWorld(
       events.push({ type: 'shot', bullet: r.bullet });
     }
   }
-  // Boxes always come from the post-step-1 states, even for players respawned this tick.
+  // Boxes come from the post-step-1 states; a player respawned by a hit gets a fresh box in step 3.
   const boxes = stepped.map((p) => bodyBox(p));
   const players = [...stepped];
 
@@ -111,7 +111,10 @@ export function stepWorld(
       continue;
     }
     const spawn = level.spawns[victim.side];
-    players[i] = { ...victim, x: spawn.x, y: spawn.y };
+    const respawned = { ...victim, x: spawn.x, y: spawn.y };
+    players[i] = respawned;
+    // A player shot this tick is already at the spawn: no pickups or portal from where it was hit.
+    boxes[i] = bodyBox(respawned);
     events.push({ type: 'hit', shooterId: b.ownerId, victimId: victim.id });
   }
 

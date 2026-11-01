@@ -17,7 +17,16 @@ function snap(
   bullets: BulletState[] = [],
   levelIndex = 0,
 ): Snapshot {
-  return { tick, levelIndex, ackSeq: 0, players, bullets, ammoPickupIds: [], coinIds: [] };
+  return {
+    tick,
+    levelIndex,
+    ackSeq: 0,
+    players,
+    bullets,
+    shots: [],
+    ammoPickupIds: [],
+    coinIds: [],
+  };
 }
 
 describe('SnapshotBuffer', () => {
@@ -65,6 +74,20 @@ describe('SnapshotBuffer', () => {
     expect(b.sample(1000)?.players[0]?.x).toBe(10);
     expect(b.sample(0)?.players[0]?.x).toBe(0);
     expect(b.sample(125)?.latest.tick).toBe(4);
+  });
+
+  it('snaps a player who moved more than 64 px between snapshots (respawn)', () => {
+    const b = new SnapshotBuffer(0);
+    b.push(snap(1, [player({ x: 700, y: 100, anim: 'run' })]), 0);
+    b.push(snap(4, [player({ x: 20, y: 500, anim: 'idle' })]), 50);
+    expect(b.sample(10)?.players[0]).toMatchObject({ x: 20, y: 500, anim: 'idle' });
+  });
+
+  it('still interpolates a move of exactly 64 px', () => {
+    const b = new SnapshotBuffer(0);
+    b.push(snap(1, [player({ x: 0, y: 0 })]), 0);
+    b.push(snap(4, [player({ x: 64, y: 0 })]), 50);
+    expect(b.sample(25)?.players[0]?.x).toBe(32);
   });
 
   it('ignores other levels', () => {

@@ -9,6 +9,11 @@ export interface Snapshot {
   ackSeq: number;
   players: PlayerState[];
   bullets: BulletState[];
+  /**
+   * Bullets fired since the previous snapshot sent to this room, so a shot is heard even if its
+   * bullet is gone before any snapshot shows it.
+   */
+  shots: BulletState[];
   ammoPickupIds: number[];
   coinIds: number[];
 }
@@ -35,8 +40,9 @@ export function parseInput(raw: unknown): InputFrame | null {
   try {
     if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
     const r = raw as Record<string, unknown>;
-    const { seq, left, right, jump, shoot } = r;
+    const { seq, level, left, right, jump, shoot } = r;
     if (typeof seq !== 'number' || !Number.isSafeInteger(seq) || seq < 1) return null;
+    if (typeof level !== 'number' || !Number.isSafeInteger(level) || level < 0) return null;
     if (
       typeof left !== 'boolean' ||
       typeof right !== 'boolean' ||
@@ -45,19 +51,24 @@ export function parseInput(raw: unknown): InputFrame | null {
     ) {
       return null;
     }
-    return { seq, left, right, jump, shoot };
+    return { seq, level, left, right, jump, shoot };
   } catch {
     return null;
   }
 }
 
-export function toSnapshot(world: WorldState, ackSeq: number): Snapshot {
+export function toSnapshot(
+  world: WorldState,
+  ackSeq: number,
+  shots: readonly BulletState[] = [],
+): Snapshot {
   return {
     tick: world.tick,
     levelIndex: world.levelIndex,
     ackSeq,
     players: [...world.players],
     bullets: [...world.bullets],
+    shots: [...shots],
     ammoPickupIds: world.ammoPickups.map((p) => p.id),
     coinIds: world.coins.map((p) => p.id),
   };

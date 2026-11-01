@@ -61,7 +61,7 @@ test('bullet from settled left player hits settled right player on 75th tick', (
   const events: { tick: number; e: WorldEvent }[] = [];
   for (let k = 1; k <= 80; k++) {
     const inputs = new Map<PlayerId, InputFrame>();
-    if (k === 1) inputs.set('a', { ...NEUTRAL_INPUT, seq: 1, shoot: true });
+    if (k === 1) inputs.set('a', { ...NEUTRAL_INPUT, seq: 1, level: 0, shoot: true });
     const r = stepWorld(w, inputs);
     w = r.world;
     for (const e of r.events) if (e.type === 'hit') events.push({ tick: k, e });
@@ -76,7 +76,10 @@ test('bullet from settled left player hits settled right player on 75th tick', (
 
 test('shot and jumped events are emitted', () => {
   const w = settled();
-  const r = stepWorld(w, new Map([['a', { ...NEUTRAL_INPUT, seq: 1, shoot: true, jump: true }]]));
+  const r = stepWorld(
+    w,
+    new Map([['a', { ...NEUTRAL_INPUT, seq: 1, level: 0, shoot: true, jump: true }]]),
+  );
   expect(r.events.map((e) => e.type)).toEqual(['jumped', 'shot']);
   expect(r.world.bullets).toHaveLength(1);
 });
@@ -134,6 +137,34 @@ test('portal: first joined player wins, single event', () => {
     { type: 'levelCompleted', levelIndex: 0, byPlayerId: 'a' },
   ]);
   expect(r.world.levelIndex).toBe(0);
+});
+
+/** Places `id` at (x, y) with a bullet from the other player sitting on it, so it is hit this tick. */
+function shotAt(w: WorldState, id: PlayerId, x: number, y: number): WorldState {
+  const placed = place(w, id, { x, y });
+  const ownerId = id === 'a' ? 'b' : 'a';
+  return { ...placed, bullets: [{ id: `${ownerId}:9`, ownerId, x, y, vx: 0 }] };
+}
+
+test('a player shot on a coin respawns without collecting it', () => {
+  const r = stepWorld(shotAt(settled(), 'a', 720, 513.55), NONE);
+  expect(r.events.map((e) => e.type)).toEqual(['hit']);
+  expect(player(r.world, 'a').x).toBe(getLevel(0).spawns.left.x);
+  expect(player(r.world, 'a').score).toBe(0);
+  expect(r.world.coins).toHaveLength(12);
+});
+
+test('a player shot on an ammo pickup respawns without collecting it', () => {
+  const r = stepWorld(shotAt(settled(), 'a', 440, 513.55), NONE);
+  expect(r.events.map((e) => e.type)).toEqual(['hit']);
+  expect(player(r.world, 'a').ammo).toBe(2);
+  expect(r.world.ammoPickups).toHaveLength(6);
+});
+
+test('a player shot on the portal respawns without completing the level', () => {
+  const r = stepWorld(shotAt(settled(), 'a', 700, 60), NONE);
+  expect(r.events.filter((e) => e.type === 'hit')).toHaveLength(1);
+  expect(r.events.filter((e) => e.type === 'levelCompleted')).toEqual([]);
 });
 
 test('startLevel keeps score, resets ammo, spawns, bullets, pickups', () => {
