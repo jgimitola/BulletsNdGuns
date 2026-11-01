@@ -1,33 +1,68 @@
-# BulletsNdGuns Game
+# BulletsNdGuns
 
-Proyecto de un pequeño juego que utilize hilos y sockets para la asignatura Estructura de Datos. Desarrollado por Jesús Imitola, Santiago Guerrero y Julio Mendoza.
+A small multiplayer 2D platformer-shooter. Players race through three levels collecting as many coins as they can. Shooting rivals sends them back to their spawn point and slows them down. Touching the portal at the top of a level moves everyone to the next one, and after the last portal the game ends and each player sees whether they won, lost or tied.
 
-Si desea jugar una versión en vivo haga [click aquí.](https://bndg.herokuapp.com/)
+Originally a university project (Data Structures course) by Jesús Imitola, Santiago Guerrero and Julio Mendoza, rewritten as a server-authoritative TypeScript codebase. The original JavaScript lives in the `archive/original` branch.
 
-## Descripción:
+## Requirements
 
-Se desarrolló un juego multijugador que mezcla el estilo de plataformas y shooter. En este los jugadores deberán recolectar la mayor cantidad de monedas posibles durante cada uno de los 3 niveles que conforman el juego, donde para pasar de uno a otro deberán cruzar los portales que se encuentran en la parte superior de cada nivel. Para ganar cada jugador deberá ir disparandole a sus contrincantes para retrasarlos y así poder recolectar más monedas que sus oponentes. Una vez se entra al último portal el juego termina y se muestra a cada jugador si ganó, perdió o empató.
+- Node 24 (see `.nvmrc`)
 
-## Mejoras:
+## Scripts
 
-- Optimizar código.
+| Command             | What it does                                                      |
+| ------------------- | ----------------------------------------------------------------- |
+| `npm ci`            | Install dependencies for all workspaces                           |
+| `npm run dev`       | Game server (watch mode) plus Vite dev server for the client      |
+| `npm test`          | Run all Vitest suites                                             |
+| `npm run build`     | Build the client into `packages/client/dist`                      |
+| `npm start`         | Run the server, which also serves the built client                |
+| `npm run lint`      | ESLint                                                            |
+| `npm run typecheck` | `tsc --noEmit` in every package                                   |
+| `npm run format`    | Prettier                                                          |
 
-- Mejorar diseño de niveles.
+Production: `npm run build && npm start`. Environment: `PORT` (default 3000), `CLIENT_DIST` (default `packages/client/dist`). `GET /healthz` returns `{"status":"ok"}`.
 
-- Añadir mejores efectos de sonido.
+Docker:
 
-- Añadir mejores diseños de personajes y UI.
+```sh
+docker build -t bulletsndguns .
+docker run -p 3000:3000 bulletsndguns
+```
 
-- En general, añadir más ideas.
+The server and shared code run as TypeScript directly through Node 24 type stripping, so there is no server build step.
 
-## ¿Con qué se desarrolló?
+## Architecture
 
-Este proyecto se desarrolló sobre [NodeJS](https://nodejs.org) trabajando con las siguientes dependencias:
+npm workspaces monorepo:
 
-- [Phaser.io](https://phaser.io/) para la parte del motor del juego.
+- `packages/shared`: pure TypeScript, no Phaser or Node APIs. Fixed-step physics (AABB against the tile grid), the simulation (`step(state, inputs, dt)`), the level registry (Tiled maps, spawns, pickups, portal) and the network protocol types.
+- `packages/server`: Express 5 (static client, `/healthz`), Socket.io wiring, and the `Room` / `RoomManager` that own matches.
+- `packages/client`: Phaser 4 renderer, Vite build, input, networking and i18n.
 
-- [ExpressJS](https://expressjs.com) para el servidor web.
+### From key press to snapshot
 
-- [Socket.io](https://socket.io) para la parte de los sockets.
+1. The client samples the keyboard each tick and sends `{ seq, left, right, jump, shoot }`. It also applies the input immediately to its own copy of the simulation (prediction).
+2. The server queues inputs per player and applies one per 60 Hz tick, running the same shared `step` function. Movement, shooting, hits, pickups, portals and the winner are decided only here.
+3. The server broadcasts snapshots about 20 to 30 times per second, including each player's last processed input `seq`.
+4. The local client resets to the server state and replays unacknowledged inputs (reconciliation). Remote players and bullets are drawn about 100 ms in the past, interpolated between snapshots.
+5. One-off events (shot, pickup, hit, level change, match over) arrive as messages so sounds and effects fire once.
 
-Para la parte de hilos, se utilizó el propio manejo de Phaser de los hilos.
+### Rooms
+
+A `Room` owns one match (players, simulation state, phase: lobby, playing, game over). `RoomManager` currently creates a single default room that every connection joins. Multiple rooms and a room listing would mean more rooms plus a lobby API, with no simulation changes.
+
+## Language
+
+Player-facing text is Spanish and goes through `packages/client/src/i18n`. To add a locale:
+
+1. Add `packages/client/src/i18n/locales/<code>.ts` with the same keys as `es.ts`.
+2. Add the text-bearing images (title, buttons, popup, credits, waiting sprite) under `packages/client/public/assets/locales/<code>/`, with the same file names as `es/`.
+
+## Tooling note
+
+TypeScript is pinned to 6.0.3. typescript-eslint 8.72.x supports TypeScript below 6.1, and TypeScript 7 is out but not yet supported by the linter. Bump the pin once typescript-eslint supports it.
+
+## Authors
+
+Jesús Imitola, Santiago Guerrero, Julio Mendoza.
