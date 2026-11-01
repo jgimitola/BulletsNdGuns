@@ -21,7 +21,9 @@ export class MenuScene extends Phaser.Scene {
     this.add.image(400, 192, TextureKey.title);
 
     const playButton = this.add.image(400, PLAY_Y, TextureKey.playButton);
-    const playButtonHover = this.add.image(400, PLAY_Y, TextureKey.playButtonHover).setVisible(false);
+    const playButtonHover = this.add
+      .image(400, PLAY_Y, TextureKey.playButtonHover)
+      .setVisible(false);
     const infoButton = this.add.image(785, 15, TextureKey.infoButton);
     const credits = this.add.image(400, 300, TextureKey.credits).setVisible(false);
     const waiting = this.add.sprite(400, PLAY_Y, TextureKey.waiting).setVisible(false);

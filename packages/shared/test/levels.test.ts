@@ -12,7 +12,7 @@ test('three levels in order', () => {
   expect(LEVELS.map((l) => l.tilemapKey)).toEqual(['level-1', 'level-2', 'level-3']);
 });
 
-test('pickup counts match coleccionables.json', () => {
+test('pickup counts match coleccionables.json (archive/original)', () => {
   expect(LEVELS.map((l) => [l.ammoPickups.length, l.coins.length])).toEqual([
     [6, 12],
     [6, 13],
@@ -22,7 +22,12 @@ test('pickup counts match coleccionables.json', () => {
 });
 
 test('rects', () => {
-  expect(ammoPickupRect({ id: 1, x: 416, y: 540 })).toEqual({ x: 427, y: 510, width: 10, height: 30 });
+  expect(ammoPickupRect({ id: 1, x: 416, y: 540 })).toEqual({
+    x: 427,
+    y: 510,
+    width: 10,
+    height: 30,
+  });
   expect(coinRect({ id: 1, x: 100, y: 200 })).toEqual({ x: 104, y: 174, width: 25, height: 23 });
   expect(portalRect(LEVELS[0]!)).toEqual({ x: 682, y: 30, width: 44, height: 60 });
 });

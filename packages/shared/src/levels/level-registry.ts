@@ -8,7 +8,7 @@ import level3Map from './maps/level-3.json' with { type: 'json' };
 
 export type Side = 'left' | 'right';
 
-/** Raw pickup coordinates (top-left origin, as in the original coleccionables.json). */
+/** Raw pickup coordinates (top-left origin), from `coleccionables.json` on branch `archive/original`. */
 export interface Pickup {
   id: number;
   x: number;
