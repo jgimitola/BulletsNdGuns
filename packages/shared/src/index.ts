@@ -6,6 +6,7 @@ export * from './physics/arcade-body.ts';
 export * from './physics/collide.ts';
 export * from './levels/level-registry.ts';
 export * from './protocol/input.ts';
+export * from './protocol/messages.ts';
 export * from './simulation/player.ts';
 export * from './simulation/bullet.ts';
 export * from './simulation/world.ts';
