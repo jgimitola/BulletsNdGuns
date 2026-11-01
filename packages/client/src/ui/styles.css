@@ -1,0 +1,172 @@
+/* Pixel arcade UI. Sizes are in 800x600 "game pixels": calc(N * var(--px)). */
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
+
+body {
+  display: grid;
+  place-items: center;
+}
+
+#stage {
+  position: relative;
+  width: min(100vw, calc(100vh * 4 / 3));
+  width: min(100vw, calc(100dvh * 4 / 3));
+  aspect-ratio: 4 / 3;
+  container-type: size;
+}
+
+#game,
+#ui {
+  position: absolute;
+  inset: 0;
+}
+
+#game canvas {
+  image-rendering: pixelated;
+}
+
+#ui {
+  --px: calc(100cqw / 800);
+  --navy: #14182b;
+  --panel: #3a3f63;
+  --purple: #7b3fbf;
+  --purple-light: #9655d9;
+  --brick: #8a3b2a;
+  --brick-dark: #6e2b1f;
+  --brick-light: #b0533c;
+  --yellow: #ffd23f;
+  --border: calc(3 * var(--px)) solid #fff;
+  --shadow: calc(4 * var(--px)) calc(4 * var(--px)) 0 #000;
+
+  pointer-events: none;
+  font-family: 'Press Start 2P', monospace;
+  font-size: calc(12 * var(--px));
+  line-height: 1.6;
+  color: #fff;
+  user-select: none;
+}
+
+#ui p {
+  margin: 0;
+}
+
+.interactive {
+  pointer-events: auto;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(18 * var(--px));
+  overflow: hidden;
+}
+
+.screen--menu {
+  background: var(--navy);
+}
+
+.brick-strip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 18%;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--brick) 0 calc(22 * var(--px)),
+    var(--brick-dark) calc(22 * var(--px)) calc(24 * var(--px))
+  );
+  box-shadow: inset 0 calc(4 * var(--px)) 0 var(--brick-light);
+}
+
+.blink {
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blink {
+    animation: none;
+  }
+}
+
+/* Buttons and panels */
+
+.pixel-button {
+  box-sizing: border-box;
+  width: calc(240 * var(--px));
+  padding: calc(14 * var(--px)) 0;
+  font: inherit;
+  font-size: calc(14 * var(--px));
+  color: #fff;
+  text-align: center;
+  text-transform: uppercase;
+  background: var(--panel);
+  border: var(--border);
+  border-radius: 0;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+
+.pixel-button:hover,
+.pixel-button:focus-visible {
+  border-color: var(--yellow);
+  outline: none;
+}
+
+.pixel-button:active {
+  box-shadow: none;
+  transform: translate(calc(4 * var(--px)), calc(4 * var(--px)));
+}
+
+.pixel-button--primary {
+  background: var(--purple);
+}
+
+.pixel-button--primary:hover {
+  background: var(--purple-light);
+}
+
+.pixel-panel {
+  background: var(--panel);
+  border: var(--border);
+  box-shadow: var(--shadow);
+}
+
+/* Loading */
+
+.loading__bar {
+  box-sizing: border-box;
+  width: calc(320 * var(--px));
+  height: calc(36 * var(--px));
+  padding: calc(3 * var(--px));
+  border: var(--border);
+  box-shadow: var(--shadow);
+  background: var(--panel);
+}
+
+.loading__fill {
+  height: 100%;
+  background: var(--yellow);
+}
+
+.loading__file {
+  font-size: calc(9 * var(--px));
+  color: #c8cbe6;
+  white-space: pre;
+}

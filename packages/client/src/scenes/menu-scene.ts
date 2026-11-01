@@ -11,7 +11,8 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create(): void {
-    const { network } = getServices(this);
+    const { network, ui } = getServices(this);
+    ui.getState().setScreen('menu');
     const hoverSound = this.sound.add(SoundKey.buttonHover, { volume: 0.2, loop: false });
 
     // Creation order decides depth and which object receives a click, so it mirrors the original menu.

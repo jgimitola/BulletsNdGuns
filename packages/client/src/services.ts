@@ -1,8 +1,10 @@
 import type Phaser from 'phaser';
 import type { NetworkClient } from './net/network-client.ts';
+import type { UiStore } from './ui/store.ts';
 
 export interface GameServices {
   network: NetworkClient;
+  ui: UiStore;
 }
 
 export const SERVICES_KEY = 'services';

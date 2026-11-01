@@ -9,9 +9,10 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
   width: 800,
   height: 600,
   parent: 'game',
+  // The world stays 800x600; the canvas is scaled to fit #stage, which CSS keeps at 4:3.
   scale: {
-    mode: Phaser.Scale.NONE,
-    autoCenter: Phaser.Scale.CENTER_HORIZONTALLY,
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   audio: { disableWebAudio: true },
   pixelArt: true,
