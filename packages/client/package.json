@@ -1,0 +1,17 @@
+{
+  "name": "@bng/client",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run --passWithNoTests --root ../.. --project @bng/client",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "phaser": "^4.2.1",
+    "socket.io-client": "^4.8.4"
+  },
+  "devDependencies": {
+    "vite": "^8.3.5"
+  }
+}

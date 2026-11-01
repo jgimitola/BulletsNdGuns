@@ -1,0 +1,13 @@
+{
+  "name": "@bng/shared",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run --passWithNoTests --root ../.. --project @bng/shared",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

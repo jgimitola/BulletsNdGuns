@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+public/
+server.js
+package-lock.json
+*.json
+*.html

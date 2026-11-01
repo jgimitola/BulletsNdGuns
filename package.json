@@ -1,28 +1,34 @@
 {
   "name": "bulletsndguns",
-  "version": "1.0.0",
-  "description": "Proyecto para Estructuras de Datos II.",
-  "main": "server.js",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "BulletsNdGuns: multiplayer platformer (Phaser + Socket.io), TypeScript monorepo.",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "echo \"dev: not configured yet\"",
+    "build": "echo \"build: not configured yet\"",
+    "start": "echo \"start: not configured yet\"",
+    "test": "vitest run",
+    "lint": "eslint \"packages/*/{src,test}/**/*.ts\"",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "format": "prettier --write ."
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jgimitola/BulletsNdGuns.git"
   },
-  "keywords": [
-    "SocketIO",
-    "Phaser"
-  ],
   "author": "JSJ",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/jgimitola/BulletsNdGuns/issues"
-  },
-  "homepage": "https://github.com/jgimitola/BulletsNdGuns#readme",
-  "dependencies": {
-    "express": "^4.17.1",
-    "phaser": "^3.20.1",
-    "socket.io": "^2.5.0"
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "concurrently": "^10.0.6",
+    "eslint": "^10.14.0",
+    "prettier": "^3.9.10",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.0.5"
   }
 }
