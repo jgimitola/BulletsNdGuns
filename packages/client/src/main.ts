@@ -12,7 +12,12 @@ const network = new NetworkClient();
 let game: Phaser.Game | undefined;
 
 network.on('joined', () => {
-  if (game) return;
+  // A second `joined` means socket.io reconnected under a new socket id: the server sees a fresh,
+  // not-ready player and the old match state is gone, so start over from a clean page.
+  if (game) {
+    window.location.reload();
+    return;
+  }
   game = new Phaser.Game(gameConfig);
   const services: GameServices = { network };
   game.registry.set(SERVICES_KEY, services);

@@ -1,4 +1,4 @@
-import { LEVELS } from '@bng/shared';
+import { LEVELS, PLAYER_FRAME_HEIGHT, PLAYER_FRAME_WIDTH } from '@bng/shared';
 import type Phaser from 'phaser';
 import { localizedAsset } from '../i18n/index.ts';
 
@@ -30,7 +30,10 @@ export const SoundKey = {
 
 export const ANIMATION_WAITING = 'waiting';
 
-export const PLAYER_FRAME = { frameWidth: 27, frameHeight: 23 } as const;
+export const PLAYER_FRAME = {
+  frameWidth: PLAYER_FRAME_WIDTH,
+  frameHeight: PLAYER_FRAME_HEIGHT,
+} as const;
 export const WAITING_FRAME = { frameWidth: 291, frameHeight: 70 } as const;
 
 export function loadAllAssets(load: Phaser.Loader.LoaderPlugin): void {
