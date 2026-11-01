@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+  LEVELS,
   getLevel,
   type InputFrame,
   type PlayerId,
@@ -124,7 +125,7 @@ describe('Room', () => {
   test('join refused while playing and during gameOver', () => {
     const { room } = startMatch();
     expect(room.join('c')).toBe('refused');
-    room.__setWorldForTest({ ...room.worldForTest()!, levelIndex: 2 });
+    room.__setWorldForTest({ ...room.worldForTest()!, levelIndex: LEVELS.length - 1 });
     placeOnPortal(room, 'a');
     room.tick();
     expect(room.phaseKind).toBe('gameOver');
@@ -204,7 +205,7 @@ describe('Room', () => {
 
   test('last portal ends match: matchEnded, scheduler stopped, phase gameOver', () => {
     const { room, transport, scheduler } = startMatch();
-    room.__setWorldForTest({ ...room.worldForTest()!, levelIndex: 2 });
+    room.__setWorldForTest({ ...room.worldForTest()!, levelIndex: LEVELS.length - 1 });
     placeOnPortal(room, 'a');
     room.tick();
     expect(room.phaseKind).toBe('gameOver');
@@ -233,7 +234,7 @@ describe('Room', () => {
 
   test('room resets to lobby when everyone leaves', () => {
     const { room, scheduler } = startMatch();
-    room.__setWorldForTest({ ...room.worldForTest()!, levelIndex: 2 });
+    room.__setWorldForTest({ ...room.worldForTest()!, levelIndex: LEVELS.length - 1 });
     placeOnPortal(room, 'a');
     room.tick();
     expect(room.phaseKind).toBe('gameOver');

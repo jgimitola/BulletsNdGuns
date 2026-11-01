@@ -21,6 +21,7 @@ export const PICKUP_DRAW_OFFSET_Y = 30;
 export const MIN_PLAYERS_TO_START = 2;
 export const SNAPSHOT_EVERY_TICKS = 3,
   INTERPOLATION_DELAY_MS = 100;
+export const MAX_CATCH_UP_TICKS = 5;
 export const INPUT_QUEUE_LIMIT = 8,
   INPUT_STARVATION_TICKS = 6;
 export const PLATFORM_LAYER = 'Plataformas',

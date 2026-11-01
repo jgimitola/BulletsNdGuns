@@ -1,7 +1,5 @@
-import { TICK_MS } from '@bng/shared';
+import { MAX_CATCH_UP_TICKS, TICK_MS } from '@bng/shared';
 import type { TickScheduler } from './room.ts';
-
-const MAX_CATCH_UP_TICKS = 5;
 
 /** Fixed-step scheduler: setTimeout loop with a time accumulator. */
 export class TickLoop implements TickScheduler {
@@ -22,7 +20,11 @@ export class TickLoop implements TickScheduler {
       while (accumulator >= TICK_MS && steps < MAX_CATCH_UP_TICKS) {
         accumulator -= TICK_MS;
         steps++;
-        onTick();
+        try {
+          onTick();
+        } catch (error) {
+          console.error('tick failed', error);
+        }
         if (!this.running) return;
       }
       // Drop backlog beyond the catch-up cap instead of spiralling.

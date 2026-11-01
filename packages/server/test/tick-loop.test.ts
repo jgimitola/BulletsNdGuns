@@ -21,3 +21,18 @@ test('runs onTick about once per TICK_MS and stops on stop()', () => {
   vi.advanceTimersByTime(1000);
   expect(n).toBe(after);
 });
+
+test('survives an onTick throw and keeps ticking', () => {
+  const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const loop = new TickLoop();
+  let n = 0;
+  loop.start(() => {
+    n++;
+    if (n === 2) throw new Error('boom');
+  });
+  vi.advanceTimersByTime(TICK_MS * 6 + 1);
+  expect(n).toBeGreaterThanOrEqual(5);
+  expect(errors).toHaveBeenCalledTimes(1);
+  loop.stop();
+  errors.mockRestore();
+});
