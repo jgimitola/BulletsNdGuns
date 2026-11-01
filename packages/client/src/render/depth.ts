@@ -1,10 +1,9 @@
 /**
- * Draw order of the original level scene, which came from creation order: HUD, local player,
- * other players, platforms, ammo pickups, coins, own bullets, other bullets, portal. Views here are
+ * Draw order of the original level scene, which came from creation order: local player, other
+ * players, platforms, ammo pickups, coins, own bullets, other bullets, portal. Views here are
  * created on demand, so the order is pinned with depths instead.
  */
 export const Depth = {
-  hud: 0,
   localPlayer: 1,
   remotePlayers: 2,
   platforms: 3,

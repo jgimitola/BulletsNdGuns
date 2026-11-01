@@ -20,10 +20,10 @@ import { RemoteShotTracker } from '../net/remote-shots.ts';
 import { SnapshotBuffer } from '../net/snapshot-buffer.ts';
 import { BulletViews } from '../render/bullet-views.ts';
 import { Depth } from '../render/depth.ts';
-import { Hud } from '../render/hud.ts';
 import { PickupViews } from '../render/pickup-views.ts';
 import { PlayerView } from '../render/player-view.ts';
 import { getServices } from '../services.ts';
+import type { UiStore } from '../ui/store.ts';
 
 export interface LevelSceneData {
   levelIndex: number;
@@ -35,6 +35,7 @@ const SFX_VOLUME = 0.15;
 /** Everything one run of the scene owns; rebuilt on every start, so a restart never sees stale state. */
 interface LevelSession {
   network: NetworkClient;
+  ui: UiStore;
   playerId: PlayerId;
   input: KeyboardInput;
   predictor: LocalPlayerPredictor;
@@ -46,7 +47,6 @@ interface LevelSession {
   ownBulletViews: BulletViews;
   remoteBulletViews: BulletViews;
   pickups: PickupViews;
-  hud: Hud;
   jumpSound: Phaser.Sound.BaseSound;
   shotSound: Phaser.Sound.BaseSound;
   accumulator: number;
@@ -70,10 +70,11 @@ export class LevelScene extends Phaser.Scene {
     if (!data) throw new Error('Level scene started without level data');
     const { levelIndex, snapshot } = data;
     const { network, ui } = getServices(this);
-    ui.getState().setScreen('level');
     const playerId = network.playerId;
     const me = snapshot.players.find((p) => p.id === playerId);
     if (playerId === undefined || !me) throw new Error('Local player is missing from the level');
+    ui.getState().setHud(me.ammo, me.score);
+    ui.getState().setScreen('level');
     const level = getLevel(levelIndex);
 
     this.cameras.main.setBackgroundColor(LEVEL_BACKGROUND);
@@ -96,6 +97,7 @@ export class LevelScene extends Phaser.Scene {
 
     const session: LevelSession = {
       network,
+      ui,
       playerId,
       input: new KeyboardInput(this),
       // Seq numbering carries on from the previous level: the server rejects anything not above it.
@@ -108,7 +110,6 @@ export class LevelScene extends Phaser.Scene {
       ownBulletViews: new BulletViews(this, Depth.ownBullets),
       remoteBulletViews: new BulletViews(this, Depth.remoteBullets),
       pickups: new PickupViews(this, level, Depth.pickups),
-      hud: new Hud(this, me.ammo, me.score, Depth.hud),
       jumpSound,
       shotSound,
       accumulator: 0,
@@ -166,7 +167,8 @@ export class LevelScene extends Phaser.Scene {
     const local = session.predictor.state;
     session.localView.update(local);
     session.ownBulletViews.sync(session.ownBullets.bullets);
-    session.hud.update(local.ammo, local.score);
+    // Called every frame; the store only notifies the HTML HUD when a value changes.
+    session.ui.getState().setHud(local.ammo, local.score);
 
     // The buffer starts with the level's initial snapshot, so this only fails if that was never pushed.
     const renderAt = performance.now() - INTERPOLATION_DELAY_MS;

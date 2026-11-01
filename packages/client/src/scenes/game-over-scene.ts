@@ -1,14 +1,8 @@
 import Phaser from 'phaser';
-import { matchResult, type MatchResult, type MatchScores } from '@bng/shared';
-import { t } from '../i18n/index.ts';
+import { matchResult, type MatchScores } from '@bng/shared';
 import { getServices } from '../services.ts';
 
-const RESULT_COLOR: Record<MatchResult, string> = {
-  win: '#00ff0d',
-  lose: '#ff0000',
-  tie: '#ffffff',
-};
-
+/** Draws nothing: it hands the local player's result to the HTML game-over screen. */
 export class GameOverScene extends Phaser.Scene {
   private scores: MatchScores['scores'] = [];
 
@@ -21,10 +15,7 @@ export class GameOverScene extends Phaser.Scene {
   }
 
   create(): void {
-    const { network } = getServices(this);
-    const result = matchResult(this.scores, network.playerId ?? '');
-    this.add
-      .text(400, 300, t(`result.${result}`), { fontSize: '32px', color: RESULT_COLOR[result] })
-      .setOrigin(0.5, 0.5);
+    const { network, ui } = getServices(this);
+    ui.getState().setResult(matchResult(this.scores, network.playerId ?? ''));
   }
 }
