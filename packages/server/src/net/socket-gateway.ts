@@ -19,6 +19,8 @@ const RATE_WINDOW_MS = 1000;
 const MAX_INPUTS_PER_WINDOW = INPUT_RATE_LIMIT_FACTOR * TICK_RATE;
 /** Create/join/leave/ready come from button clicks; more than this per second is abuse. */
 const MAX_ROOM_ACTIONS_PER_WINDOW = 10;
+/** The client probes latency every couple of seconds; this leaves plenty of room. */
+const MAX_LATENCY_PROBES_PER_WINDOW = 5;
 
 /** Transport that delivers room messages to the socket whose id is the player id. */
 export function createSocketTransport(io: GameServer): RoomTransport {
@@ -46,6 +48,7 @@ export function attachSocketGateway(io: GameServer, rooms: RoomManager): void {
   io.on('connection', (socket) => {
     const inputRate = rateLimiter(MAX_INPUTS_PER_WINDOW, RATE_WINDOW_MS);
     const actionRate = rateLimiter(MAX_ROOM_ACTIONS_PER_WINDOW, RATE_WINDOW_MS);
+    const latencyRate = rateLimiter(MAX_LATENCY_PROBES_PER_WINDOW, RATE_WINDOW_MS);
     const kick = (): void => {
       socket.disconnect(true);
     };
@@ -81,6 +84,10 @@ export function attachSocketGateway(io: GameServer, rooms: RoomManager): void {
     socket.on('ready', () => {
       if (!actionRate.hit()) return kick();
       rooms.roomOf(socket.id)?.markReady(socket.id);
+    });
+    socket.on('latency', (ack: unknown) => {
+      if (!latencyRate.hit()) return kick();
+      if (typeof ack === 'function') (ack as () => void)();
     });
     socket.on('input', (raw: unknown) => {
       if (!inputRate.hit()) return kick();

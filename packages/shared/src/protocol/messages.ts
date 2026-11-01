@@ -50,6 +50,8 @@ export interface ClientToServerEvents {
   joinRoom: (request: unknown, ack: (result: RoomAck) => void) => void;
   leaveRoom: () => void;
   ready: () => void;
+  /** Answered at once with an empty ack; the client times the round trip. */
+  latency: (ack: () => void) => void;
   input: (frame: InputFrame) => void;
 }
 

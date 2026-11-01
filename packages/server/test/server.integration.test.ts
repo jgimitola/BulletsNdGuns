@@ -147,6 +147,11 @@ describe('server integration', () => {
     expect(again.ok).toBe(true);
   });
 
+  test('latency probes are answered without being in a room', async () => {
+    const a = await connected(newClient());
+    await expect(a.timeout(2000).emitWithAck('latency')).resolves.toBeUndefined();
+  });
+
   test('leaveRoom in the lobby closes an emptied room', async () => {
     const a = await connected(newClient());
     await a.emitWithAck('createRoom', { name: 'Sala', nickname: 'Ana' });
