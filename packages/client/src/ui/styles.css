@@ -1,4 +1,8 @@
-/* Pixel arcade UI. Sizes are in 800x600 "game pixels": calc(N * var(--px)). */
+/*
+ * Pixel arcade UI. Sizes are in 800x600 "game pixels": calc(N * var(--px)).
+ * Tiny5 for text (its accented capitals read correctly at any scale). Press Start 2P only for display
+ * text without accents, because its accented capitals are drawn as short as lowercase letters.
+ */
 
 html,
 body {
@@ -44,10 +48,12 @@ body {
   --border: calc(3 * var(--px)) solid #fff;
   --shadow: calc(4 * var(--px)) calc(4 * var(--px)) 0 #000;
 
+  --font-display: 'Press Start 2P', monospace;
+
   pointer-events: none;
-  font-family: 'Press Start 2P', monospace;
-  font-size: calc(12 * var(--px));
-  line-height: 1.6;
+  font-family: 'Tiny5', monospace;
+  font-size: calc(18 * var(--px));
+  line-height: 1.4;
   color: #fff;
   user-select: none;
 }
@@ -110,9 +116,11 @@ body {
 .pixel-button {
   box-sizing: border-box;
   width: calc(240 * var(--px));
-  padding: calc(14 * var(--px)) 0;
+  padding: calc(12 * var(--px)) 0;
   font: inherit;
-  font-size: calc(14 * var(--px));
+  font-size: calc(22 * var(--px));
+  font-weight: normal;
+  letter-spacing: calc(1 * var(--px));
   color: #fff;
   text-align: center;
   text-transform: uppercase;
@@ -148,6 +156,118 @@ body {
   box-shadow: var(--shadow);
 }
 
+.pixel-button--static {
+  cursor: default;
+}
+
+.pixel-button--static:active {
+  box-shadow: var(--shadow);
+  transform: none;
+}
+
+/* Menu */
+
+.menu__title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 0 calc(24 * var(--px));
+  font-family: var(--font-display);
+  font-size: calc(40 * var(--px));
+  font-weight: normal;
+  line-height: 1.5;
+  color: var(--yellow);
+  text-shadow:
+    calc(3 * var(--px)) calc(3 * var(--px)) 0 var(--brick-light),
+    calc(6 * var(--px)) calc(6 * var(--px)) 0 #000;
+}
+
+.menu__credits {
+  position: absolute;
+  top: calc(16 * var(--px));
+  right: calc(16 * var(--px));
+  width: auto;
+  padding: calc(8 * var(--px)) calc(12 * var(--px));
+}
+
+/* Dialogs (portalled straight into #ui) */
+
+.dialog__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 0.6);
+}
+
+.dialog {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  width: calc(600 * var(--px));
+  max-height: calc(560 * var(--px));
+  overflow-y: auto;
+  padding: calc(24 * var(--px));
+  display: flex;
+  flex-direction: column;
+  gap: calc(16 * var(--px));
+  font-size: calc(18 * var(--px));
+  line-height: 1.5;
+}
+
+.dialog:focus {
+  outline: none;
+}
+
+.dialog__title {
+  margin: 0;
+  font-size: calc(30 * var(--px));
+  font-weight: normal;
+  text-align: center;
+  color: var(--yellow);
+  text-shadow: calc(3 * var(--px)) calc(3 * var(--px)) 0 #000;
+}
+
+.dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: calc(10 * var(--px));
+}
+
+.dialog__close {
+  align-self: center;
+  width: auto;
+  padding: calc(8 * var(--px)) calc(24 * var(--px));
+  font-size: calc(18 * var(--px));
+}
+
+.credits__heading {
+  margin: 0 0 calc(4 * var(--px));
+  font-size: inherit;
+  font-weight: normal;
+  color: var(--yellow);
+}
+
+.rich-key {
+  color: #9fa8ff;
+}
+
+.rich-red {
+  color: #ff4d4d;
+}
+
+.rich-gold {
+  color: var(--yellow);
+}
+
+.rich-name {
+  color: #5ec8ff;
+}
+
+.rich-tool {
+  color: #ff9a3c;
+}
+
 /* Loading */
 
 .loading__bar {
@@ -166,7 +286,7 @@ body {
 }
 
 .loading__file {
-  font-size: calc(9 * var(--px));
+  font-size: calc(14 * var(--px));
   color: #c8cbe6;
   white-space: pre;
 }

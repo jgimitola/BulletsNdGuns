@@ -69,7 +69,8 @@ export class LevelScene extends Phaser.Scene {
     const data = this.startData;
     if (!data) throw new Error('Level scene started without level data');
     const { levelIndex, snapshot } = data;
-    const { network } = getServices(this);
+    const { network, ui } = getServices(this);
+    ui.getState().setScreen('level');
     const playerId = network.playerId;
     const me = snapshot.players.find((p) => p.id === playerId);
     if (playerId === undefined || !me) throw new Error('Local player is missing from the level');

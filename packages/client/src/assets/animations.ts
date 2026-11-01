@@ -1,6 +1,6 @@
 import type Phaser from 'phaser';
 import type { AnimationKey } from '@bng/shared';
-import { ANIMATION_WAITING, TextureKey } from './manifest.ts';
+import { TextureKey } from './manifest.ts';
 
 interface FrameDef {
   start: number;
@@ -22,12 +22,6 @@ export function animationKeyFor(sheet: 'player' | 'enemy', key: AnimationKey): s
 }
 
 export function registerAnimations(anims: Phaser.Animations.AnimationManager): void {
-  anims.create({
-    key: ANIMATION_WAITING,
-    frames: anims.generateFrameNumbers(TextureKey.waiting),
-    frameRate: 2,
-    repeat: -1,
-  });
   for (const sheet of ['player', 'enemy'] as const) {
     for (const [key, def] of Object.entries(FRAMES) as [AnimationKey, FrameDef][]) {
       anims.create({

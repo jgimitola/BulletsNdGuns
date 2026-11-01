@@ -1,5 +1,6 @@
 import { ConnectingScreen } from './screens/ConnectingScreen.tsx';
 import { LoadingScreen } from './screens/LoadingScreen.tsx';
+import { MenuScreen } from './screens/MenuScreen.tsx';
 import { useUi } from './UiStoreContext.tsx';
 
 export function App() {
@@ -9,6 +10,8 @@ export function App() {
       return <ConnectingScreen />;
     case 'loading':
       return <LoadingScreen />;
+    case 'menu':
+      return <MenuScreen />;
     default:
       return null;
   }

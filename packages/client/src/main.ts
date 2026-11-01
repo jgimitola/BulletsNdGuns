@@ -1,3 +1,4 @@
+import '@fontsource/tiny5';
 import '@fontsource/press-start-2p';
 import './ui/styles.css';
 import Phaser from 'phaser';

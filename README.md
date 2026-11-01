@@ -57,7 +57,7 @@ A `Room` owns one match (players, simulation state, phase: lobby, playing, game 
 Player-facing text is Spanish and goes through `packages/client/src/i18n`. To add a locale:
 
 1. Add `packages/client/src/i18n/locales/<code>.ts` with the same keys as `es.ts`.
-2. Add the text-bearing images (title, buttons, popup, credits, waiting sprite) under `packages/client/public/assets/locales/<code>/`, with the same file names as `es/`.
+2. All UI text lives in the locale file; there are no text-bearing images.
 
 ## Tooling note
 

@@ -14,7 +14,3 @@ export function t(key: TranslationKey, params?: Record<string, string | number>)
     return value === undefined ? match : String(value);
   });
 }
-
-export function localizedAsset(file: string): string {
-  return `assets/locales/${currentLocale}/${file}`;
-}
