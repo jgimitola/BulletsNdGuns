@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   LEVELS,
+  STARTING_AMMO,
   getLevel,
   type InputFrame,
   type PlayerId,
@@ -143,6 +144,21 @@ describe('Room', () => {
     ]);
   });
 
+  test('a joining player takes the side with fewer players; ties go left', () => {
+    const { room } = setup();
+    room.join('a');
+    room.join('b');
+    room.leave('a');
+    room.join('a2');
+    room.markReady('b');
+    room.markReady('a2');
+    const sides = room.worldForTest()!.players.map((p) => [p.id, p.side]);
+    expect(sides).toEqual([
+      ['b', 'right'],
+      ['a2', 'left'],
+    ]);
+  });
+
   test('snapshot every 3 ticks with per-player ackSeq', () => {
     const { room, transport } = startMatch();
     room.queueInput('a', frame(1));
@@ -184,6 +200,40 @@ describe('Room', () => {
     for (let t = 1; t <= 7; t++) expect(xs[t]).toBeGreaterThan(xs[t - 1]!);
     for (let t = 8; t <= 10; t++) expect(xs[t]).toBe(xs[7]);
     expect(room.ackSeqForTest('a')).toBe(1);
+  });
+
+  test('starvation reuse is movement-only: one frame with shoot fires exactly one bullet', () => {
+    const { room } = startMatch();
+    room.queueInput('a', frame(1, { right: true, shoot: true }));
+    const xs: number[] = [xOf(room, 'a')];
+    for (let i = 0; i < 12; i++) {
+      room.tick();
+      xs.push(xOf(room, 'a'));
+    }
+    for (let t = 1; t <= 7; t++) expect(xs[t]).toBeGreaterThan(xs[t - 1]!);
+    const pa = room.worldForTest()!.players.find((p) => p.id === 'a')!;
+    expect(pa.ammo).toBe(STARTING_AMMO - 1);
+  });
+
+  test('level start clears queued frames but keeps seq staleness and ackSeq', () => {
+    const { room, transport } = startMatch();
+    for (let s = 1; s <= 5; s++) room.queueInput('a', frame(s, { right: true }));
+    placeOnPortal(room, 'a');
+    room.tick();
+    expect(room.worldForTest()!.levelIndex).toBe(1);
+    expect(room.ackSeqForTest('a')).toBe(1);
+    const spawnX = xOf(room, 'a');
+    ticks(room, 4);
+    expect(xOf(room, 'a')).toBe(spawnX);
+    expect(room.ackSeqForTest('a')).toBe(1);
+    // Old seqs stay stale; a fresh one is accepted.
+    room.queueInput('a', frame(3, { right: true }));
+    room.tick();
+    expect(xOf(room, 'a')).toBe(spawnX);
+    room.queueInput('a', frame(6, { right: true }));
+    room.tick();
+    expect(room.ackSeqForTest('a')).toBe(6);
+    expect(transport.of('a', 'levelStarted')).toHaveLength(2);
   });
 
   test('portal advances level once and sends levelStarted', () => {

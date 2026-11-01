@@ -68,25 +68,28 @@ describe('server integration', () => {
     const aId = a.id as string;
     const bId = b.id as string;
 
-    let phase: 'walk' | 'wait' | 'shot' = 'walk';
-    let frames = 0;
+    // One explicit state object, advanced only by a's snapshots. The interval just replays it.
+    //  walk: b holds left until a snapshot shows it well away from its spawn
+    //  fire: a sends one shoot frame, b stands still
+    //  Success: after firing, two snapshots show b back at its spawn (the server respawns the victim).
+    const state = { phase: 'walk' as 'walk' | 'fire', shootPending: false, awayX: 0, respawnSnapshots: 0 };
     let seqA = 0;
     let seqB = 0;
-    let shotSent = false;
-    let lastBx: number | undefined;
-    let shotAt = 0;
+    let spawnX: number | undefined;
 
     const done = new Promise<Snapshot>((resolve) => {
       a.on('snapshot', (snap) => {
         const pb = snap.players.find((p) => p.id === bId);
         if (!pb) return;
-        if (phase === 'wait') {
-          if (lastBx !== undefined && pb.x === lastBx && frames >= 30) {
-            phase = 'shot';
-            shotSent = false;
+        spawnX ??= pb.x;
+        if (state.phase === 'walk') {
+          if (pb.x < spawnX - 100) {
+            state.phase = 'fire';
+            state.shootPending = true;
+            state.awayX = pb.x;
           }
-          lastBx = pb.x;
-        } else if (phase === 'shot' && shotAt > 0 && snap.tick > shotAt + 5 && pb.x > 770) {
+        } else if (pb.x > state.awayX + 100 && ++state.respawnSnapshots === 2) {
+          // The first snapshot at the respawn tick is unclamped (x 803); the next one has settled.
           resolve(snap);
         }
       });
@@ -103,22 +106,12 @@ describe('server integration', () => {
 
     timers.push(
       setInterval(() => {
-        frames++;
-        const bLeft = phase === 'walk' && frames <= 30;
-        if (phase === 'walk' && frames > 30) phase = 'wait';
-        b.emit('input', mk(++seqB, { left: bLeft }));
-        const shoot = phase === 'shot' && !shotSent;
-        if (shoot) {
-          shotSent = true;
-          shotAt = 1;
-        }
+        b.emit('input', mk(++seqB, { left: state.phase === 'walk' }));
+        const shoot = state.shootPending;
+        state.shootPending = false;
         a.emit('input', mk(++seqA, { shoot }));
       }, 16),
     );
-    // Track tick of the shot via a's snapshots.
-    a.on('snapshot', (snap) => {
-      if (shotAt === 1) shotAt = snap.tick;
-    });
 
     const snap = await done;
     const pa = snap.players.find((p) => p.id === aId);

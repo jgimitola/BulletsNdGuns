@@ -74,8 +74,11 @@ export class Room {
 
   join(playerId: PlayerId): 'joined' | 'refused' {
     if (this.phase.kind !== 'lobby' || this.participants.has(playerId)) return 'refused';
+    let left = 0;
+    for (const p of this.participants.values()) if (p.side === 'left') left++;
+    const right = this.participants.size - left;
     this.participants.set(playerId, {
-      side: this.participants.size % 2 === 0 ? 'left' : 'right',
+      side: left <= right ? 'left' : 'right',
       queue: [],
       lastQueuedSeq: 0,
       lastKeys: NEUTRAL_INPUT,
@@ -138,6 +141,8 @@ export class Room {
       for (const p of this.participants.values()) {
         p.lastKeys = NEUTRAL_INPUT;
         p.emptyTicks = 0;
+        // Frames sent during the old level must not apply in the new one; lastQueuedSeq stays.
+        p.queue.length = 0;
       }
       this.sendLevelStarted(world);
       return;
@@ -187,8 +192,14 @@ export class Room {
         inputs.set(id, next);
       } else {
         p.emptyTicks++;
-        const keys = p.emptyTicks <= INPUT_STARVATION_TICKS ? p.lastKeys : NEUTRAL_INPUT;
-        inputs.set(id, { ...keys, seq: p.ackSeq });
+        // Reuse is movement-only: the client never predicted server-synthesised jumps/shots.
+        const reuse = p.emptyTicks <= INPUT_STARVATION_TICKS;
+        inputs.set(id, {
+          ...NEUTRAL_INPUT,
+          left: reuse && p.lastKeys.left,
+          right: reuse && p.lastKeys.right,
+          seq: p.ackSeq,
+        });
       }
     }
     return inputs;
