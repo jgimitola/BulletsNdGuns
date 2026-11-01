@@ -53,6 +53,17 @@ export class NetworkClient {
     this.socket.emit('leaveRoom');
   }
 
+  /** Round trip to the server in milliseconds, or null if it did not answer within `timeoutMs`. */
+  async measureLatency(timeoutMs: number): Promise<number | null> {
+    const start = performance.now();
+    try {
+      await this.socket.timeout(timeoutMs).emitWithAck('latency');
+      return performance.now() - start;
+    } catch {
+      return null;
+    }
+  }
+
   sendReady(): void {
     this.socket.emit('ready');
   }

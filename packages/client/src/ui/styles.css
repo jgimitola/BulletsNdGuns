@@ -344,6 +344,66 @@ body {
   image-rendering: pixelated;
 }
 
+/* Ping: top-right, over every screen that shows it */
+
+.ping {
+  --ping-color: #c8cbe6;
+  position: absolute;
+  top: calc(8 * var(--px));
+  right: calc(8 * var(--px));
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--px));
+  padding: calc(2 * var(--px)) calc(8 * var(--px));
+  font-size: calc(16 * var(--px));
+  color: var(--ping-color);
+  background: var(--navy);
+  border: calc(2 * var(--px)) solid #fff;
+}
+
+.ping--good {
+  --ping-color: #00ff0d;
+}
+
+.ping--fair {
+  --ping-color: var(--yellow);
+}
+
+.ping--poor {
+  --ping-color: #ff4d4d;
+}
+
+.ping__bars {
+  display: flex;
+  align-items: flex-end;
+  gap: calc(2 * var(--px));
+  height: calc(14 * var(--px));
+}
+
+.ping__bars span {
+  width: calc(4 * var(--px));
+  background: #3a3f63;
+}
+
+.ping__bars span:nth-child(1) {
+  height: 40%;
+}
+
+.ping__bars span:nth-child(2) {
+  height: 70%;
+}
+
+.ping__bars span:nth-child(3) {
+  height: 100%;
+}
+
+/* Bars lit by quality: three good, two fair, one poor, none when the server does not answer. */
+.ping--good .ping__bars span,
+.ping--fair .ping__bars span:nth-child(-n + 2),
+.ping--poor .ping__bars span:nth-child(1) {
+  background: var(--ping-color);
+}
+
 /* Game over */
 
 .game-over {

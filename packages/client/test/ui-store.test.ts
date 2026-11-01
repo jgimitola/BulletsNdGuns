@@ -182,3 +182,24 @@ describe('ui store locale', () => {
     expect(store.getState().locale).toBe('es');
   });
 });
+
+describe('ui store ping', () => {
+  it('starts unknown and only notifies on a change', () => {
+    const store = createUiStore({
+      sendReady: vi.fn(),
+      createRoom: vi.fn(),
+      joinRoom: vi.fn(),
+      leaveRoom: vi.fn(),
+      saveNickname: vi.fn(),
+      changeLocale: vi.fn(),
+    });
+    expect(store.getState().ping).toBeNull();
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.getState().setPing(42);
+    store.getState().setPing(42);
+    store.getState().setPing(null);
+    expect(listener).toHaveBeenCalledTimes(2);
+    expect(store.getState().ping).toBeNull();
+  });
+});

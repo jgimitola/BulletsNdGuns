@@ -23,6 +23,8 @@ export interface UiState {
   /** Progress is 0..1; file is the key of the asset being loaded. */
   loading: { progress: number; file: string };
   hud: { ammo: number; coins: number };
+  /** Averaged round trip to the server in ms; null before the first answer or after a lost probe. */
+  ping: number | null;
   /** This player's socket id, once connected. */
   playerId: PlayerId | null;
   /** Language of every text; components re-render when it changes. */
@@ -40,6 +42,7 @@ export interface UiState {
   setScreen(screen: Screen): void;
   setLoading(progress: number, file: string): void;
   setHud(ammo: number, coins: number): void;
+  setPing(ping: number | null): void;
   setPlayerId(playerId: PlayerId): void;
   setLocale(locale: Locale): void;
   setNickname(nickname: string): void;
@@ -92,6 +95,7 @@ export function createUiStore(
       screen: 'connecting',
       loading: { progress: 0, file: '' },
       hud: { ammo: 0, coins: 0 },
+      ping: null,
       playerId: null,
       locale: initial.locale ?? 'es',
       nickname: initial.nickname ?? '',
@@ -107,6 +111,9 @@ export function createUiStore(
         const { hud } = get();
         if (hud.ammo === ammo && hud.coins === coins) return;
         set({ hud: { ammo, coins } });
+      },
+      setPing: (ping) => {
+        if (get().ping !== ping) set({ ping });
       },
       setPlayerId: (playerId) => set({ playerId }),
       setLocale: (locale) => {

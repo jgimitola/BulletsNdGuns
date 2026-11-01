@@ -2,6 +2,7 @@ import '@fontsource/tiny5';
 import '@fontsource/press-start-2p';
 import './ui/styles.css';
 import { detectLocale, setLocale, type Locale } from './i18n/index.ts';
+import { LATENCY_TIMEOUT_MS, startLatencyMonitor } from './net/latency.ts';
 import { NetworkClient } from './net/network-client.ts';
 import { mountUi } from './ui/mount.tsx';
 import { createUiStore } from './ui/store.ts';
@@ -69,6 +70,10 @@ network.onConnect(() => {
   }
   connectedBefore = true;
   if (network.playerId) ui.getState().setPlayerId(network.playerId);
+  startLatencyMonitor(
+    () => network.measureLatency(LATENCY_TIMEOUT_MS),
+    (ms) => ui.getState().setPing(ms),
+  );
   // The loader scene takes over this screen once Phaser runs.
   ui.getState().setScreen('loading');
   void gameModule.then(({ startGame }) => startGame({ network, ui }));
