@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "phaser": "^4.2.1",
-    "socket.io-client": "^4.8.4"
+    "socket.io-client": "^4.8.4",
+    "zustand": "^5.0.16"
   },
   "devDependencies": {
     "vite": "^8.3.5"
