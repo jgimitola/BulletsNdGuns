@@ -7,6 +7,7 @@ import {
   type RoomId,
   type RoomLobby,
 } from '@bng/shared';
+import type { Locale } from '../i18n/index.ts';
 import type { RoomResponse } from '../net/network-client.ts';
 
 export type Screen = 'connecting' | 'loading' | 'menu' | 'rooms' | 'lobby' | 'level' | 'gameOver';
@@ -24,6 +25,8 @@ export interface UiState {
   hud: { ammo: number; coins: number };
   /** This player's socket id, once connected. */
   playerId: PlayerId | null;
+  /** Language of every text; components re-render when it changes. */
+  locale: Locale;
   /** The nickname field as typed; `parseNickname` decides whether it can be used. */
   nickname: string;
   /** The room this player is in, while on the lobby screen and during its match. */
@@ -38,6 +41,7 @@ export interface UiState {
   setLoading(progress: number, file: string): void;
   setHud(ammo: number, coins: number): void;
   setPlayerId(playerId: PlayerId): void;
+  setLocale(locale: Locale): void;
   setNickname(nickname: string): void;
   /** Menu -> room list, only with a valid nickname. */
   openRooms(): void;
@@ -60,9 +64,14 @@ export interface UiActions {
   joinRoom(roomId: RoomId, nickname: string): Promise<RoomResponse>;
   leaveRoom(): void;
   saveNickname(nickname: string): void;
+  /** Switches the i18n module to `locale` and remembers it. */
+  changeLocale(locale: Locale): void;
 }
 
-export function createUiStore(actions: UiActions, initial: { nickname?: string } = {}): UiStore {
+export function createUiStore(
+  actions: UiActions,
+  initial: { nickname?: string; locale?: Locale } = {},
+): UiStore {
   return createStore<UiState>()((set, get) => {
     /** Runs one create/join request and moves to the lobby on success. */
     const enterRoom = async (request: (nickname: string) => Promise<RoomResponse>) => {
@@ -84,6 +93,7 @@ export function createUiStore(actions: UiActions, initial: { nickname?: string }
       loading: { progress: 0, file: '' },
       hud: { ammo: 0, coins: 0 },
       playerId: null,
+      locale: initial.locale ?? 'es',
       nickname: initial.nickname ?? '',
       lobby: null,
       roomPending: false,
@@ -99,6 +109,11 @@ export function createUiStore(actions: UiActions, initial: { nickname?: string }
         set({ hud: { ammo, coins } });
       },
       setPlayerId: (playerId) => set({ playerId }),
+      setLocale: (locale) => {
+        if (get().locale === locale) return;
+        actions.changeLocale(locale);
+        set({ locale });
+      },
       setNickname: (nickname) => {
         set({ nickname });
         actions.saveNickname(nickname);

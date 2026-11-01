@@ -3,6 +3,7 @@ import { t } from '../../i18n/index.ts';
 import { CreditsDialog } from '../dialogs/CreditsDialog.tsx';
 import { HowToPlayDialog } from '../dialogs/HowToPlayDialog.tsx';
 import { playHoverSound } from '../hover-sound.ts';
+import { LanguageToggle } from '../LanguageToggle.tsx';
 import { useUi, useUiStore } from '../UiStoreContext.tsx';
 
 export function MenuScreen() {
@@ -12,6 +13,7 @@ export function MenuScreen() {
   return (
     <div className="screen screen--menu screen--above-strip interactive">
       <div className="brick-strip" />
+      <LanguageToggle className="menu__language" />
       <CreditsDialog
         trigger={
           <button

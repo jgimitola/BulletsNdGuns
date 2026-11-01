@@ -58,10 +58,11 @@ A `Room` owns one match (players with nicknames, simulation state, phase: lobby,
 
 ## Language
 
-Player-facing text is Spanish and goes through `packages/client/src/i18n`. To add a locale:
+Player-facing text goes through `packages/client/src/i18n` and ships in Spanish (`es`) and English (`en`). The main menu has an ES / EN switch; the choice is saved in `localStorage`. With no saved choice the browser language decides, falling back to Spanish. To add a locale:
 
-1. Add `packages/client/src/i18n/locales/<code>.ts` with the same keys as `es.ts`.
-2. All UI text lives in the locale file; there are no text-bearing images.
+1. Add `packages/client/src/i18n/locales/<code>.ts` typed as `Record<keyof typeof es, string>`, so a missing key fails the typecheck.
+2. Register it in `LOCALES` and `locales` in `packages/client/src/i18n/index.ts`, and add a `language.<code>` key to every locale.
+3. All UI text lives in the locale files; there are no text-bearing images.
 
 ## Tooling note
 

@@ -16,6 +16,7 @@ function setup(over: Partial<UiActions> = {}, nickname = 'Ana') {
     joinRoom: vi.fn(async (): Promise<RoomResponse> => ({ ok: true, lobby })),
     leaveRoom: vi.fn(),
     saveNickname: vi.fn(),
+    changeLocale: vi.fn(),
     ...over,
   };
   const store = createUiStore(actions, { nickname });
@@ -159,5 +160,25 @@ describe('ui store', () => {
     const { store } = setup();
     store.getState().setLoading(0.5, 'coin');
     expect(store.getState().loading).toEqual({ progress: 0.5, file: 'coin' });
+  });
+});
+
+describe('ui store locale', () => {
+  it('starts with the given locale and switches through changeLocale once per change', () => {
+    const actions: UiActions = {
+      sendReady: vi.fn(),
+      createRoom: vi.fn(),
+      joinRoom: vi.fn(),
+      leaveRoom: vi.fn(),
+      saveNickname: vi.fn(),
+      changeLocale: vi.fn(),
+    };
+    const store = createUiStore(actions, { locale: 'en' });
+    expect(store.getState().locale).toBe('en');
+    store.getState().setLocale('en');
+    expect(actions.changeLocale).not.toHaveBeenCalled();
+    store.getState().setLocale('es');
+    expect(actions.changeLocale).toHaveBeenCalledWith('es');
+    expect(store.getState().locale).toBe('es');
   });
 });

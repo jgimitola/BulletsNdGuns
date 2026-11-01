@@ -9,6 +9,9 @@ import { useUi } from './UiStoreContext.tsx';
 
 export function App() {
   const screen = useUi((s) => s.screen);
+  // `t` reads the i18n module, not React state. Subscribing here re-renders the whole tree (nothing
+  // below is memoised) when the language changes, so every text is translated again.
+  useUi((s) => s.locale);
   switch (screen) {
     case 'connecting':
       return <ConnectingScreen />;

@@ -196,6 +196,27 @@ body {
   padding: calc(8 * var(--px)) calc(12 * var(--px));
 }
 
+.menu__language {
+  position: absolute;
+  top: calc(16 * var(--px));
+  left: calc(16 * var(--px));
+}
+
+.language-toggle {
+  display: flex;
+  gap: calc(8 * var(--px));
+}
+
+.language-toggle__option {
+  width: auto;
+  padding: calc(8 * var(--px)) calc(12 * var(--px));
+}
+
+.language-toggle__option[aria-pressed='true'] {
+  color: var(--navy);
+  background: var(--yellow);
+}
+
 /* Dialogs (portalled straight into #ui) */
 
 .dialog__overlay {

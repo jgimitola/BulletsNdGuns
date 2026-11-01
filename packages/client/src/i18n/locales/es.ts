@@ -1,6 +1,6 @@
 export const es = {
   'loader.loading': 'Cargando...',
-  'loader.asset': 'Loading asset: {key}',
+  'loader.asset': 'Cargando recurso: {key}',
   'hud.ammo': 'Munición: {count}',
   'hud.coins': 'Monedas: {count}',
   'result.win': 'GANASTE',
@@ -16,6 +16,9 @@ export const es = {
   'menu.play': 'JUGAR',
   'menu.howToPlay': 'CÓMO JUGAR',
   'menu.credits': 'Créditos',
+  'language.label': 'Idioma',
+  'language.es': 'Español',
+  'language.en': 'English',
   'rooms.title': 'SALAS',
   'rooms.name': 'Nombre',
   'rooms.players': 'Jugadores',
