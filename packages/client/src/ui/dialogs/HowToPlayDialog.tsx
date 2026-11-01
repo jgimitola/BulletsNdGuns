@@ -10,9 +10,15 @@ const LINES: TranslationKey[] = [
   'howToPlay.coins',
 ];
 
-export function HowToPlayDialog({ trigger }: { trigger: ReactElement }) {
+export function HowToPlayDialog({
+  trigger,
+  returnFocus,
+}: {
+  trigger: ReactElement;
+  returnFocus?: boolean;
+}) {
   return (
-    <PixelDialog trigger={trigger} title={t('howToPlay.title')}>
+    <PixelDialog trigger={trigger} title={t('howToPlay.title')} returnFocus={returnFocus}>
       {LINES.map((key) => (
         <p key={key}>
           <RichText text={t(key)} />

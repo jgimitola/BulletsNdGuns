@@ -9,9 +9,15 @@ const SECTIONS: { heading: TranslationKey; lines: TranslationKey[] }[] = [
   { heading: 'credits.devHeading', lines: ['credits.maps', 'credits.engine'] },
 ];
 
-export function CreditsDialog({ trigger }: { trigger: ReactElement }) {
+export function CreditsDialog({
+  trigger,
+  returnFocus,
+}: {
+  trigger: ReactElement;
+  returnFocus?: boolean;
+}) {
   return (
-    <PixelDialog trigger={trigger} title={t('credits.title')}>
+    <PixelDialog trigger={trigger} title={t('credits.title')} returnFocus={returnFocus}>
       <p>{t('credits.authors')}</p>
       {SECTIONS.map(({ heading, lines }) => (
         <section key={heading}>

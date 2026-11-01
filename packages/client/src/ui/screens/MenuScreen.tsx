@@ -11,6 +11,7 @@ export function MenuScreen() {
     <div className="screen screen--menu interactive">
       <div className="brick-strip" />
       <CreditsDialog
+        returnFocus={!waiting}
         trigger={
           <button
             type="button"
@@ -41,6 +42,8 @@ export function MenuScreen() {
         </button>
       )}
       <HowToPlayDialog
+        // While waiting, a focused trigger would reopen the dialog on SPACE instead of doing nothing.
+        returnFocus={!waiting}
         trigger={
           <button type="button" className="pixel-button" onPointerEnter={playHoverSound}>
             {t('menu.howToPlay')}
