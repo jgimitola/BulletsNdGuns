@@ -37,7 +37,7 @@ The server and shared code run as TypeScript directly through Node 24 type strip
 npm workspaces monorepo:
 
 - `packages/shared`: pure TypeScript, no Phaser or Node APIs. Fixed-step physics (AABB against the tile grid), the simulation (`step(state, inputs, dt)`), the level registry (Tiled maps, spawns, pickups, portal) and the network protocol types.
-- `packages/server`: Express 5 (static client, `/healthz`), Socket.io wiring, and the `Room` / `RoomManager` that own matches.
+- `packages/server`: Express 5 (static client, `/healthz`, `/api/rooms`), Socket.io wiring, and the `Room` / `RoomManager` that own matches.
 - `packages/client`: Phaser 4 renderer, Vite build, input, networking and i18n.
 
 ### From key press to snapshot
@@ -50,7 +50,11 @@ npm workspaces monorepo:
 
 ### Rooms
 
-A `Room` owns one match (players, simulation state, phase: lobby, playing, game over). `RoomManager` currently creates a single default room that every connection joins. Multiple rooms and a room listing would mean more rooms plus a lobby API, with no simulation changes.
+A `Room` owns one match (players with nicknames, simulation state, phase: lobby, playing, closed). `RoomManager` holds every open room (at most 50) and which room each player is in.
+
+- Nobody is in a room on connect. The room table polls `GET /api/rooms` (`{ rooms: [{ id, name, players, status }] }`).
+- `createRoom` and `joinRoom` socket events (with an ack) put a player in a room; `leaveRoom` takes them out. While in the lobby every change is pushed as `lobbyUpdated`. The match starts when everyone is ready and there are at least 2 players.
+- A room closes when its lobby empties, when its last level is finished, or when its match drops to one player (who wins). `matchEnded` carries the reason (`completed` or `rivalsLeft`), and players go back to the menu from the result screen.
 
 ## Language
 
