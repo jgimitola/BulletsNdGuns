@@ -3,9 +3,15 @@ import type { ClientToServerEvents, InputFrame, ServerToClientEvents } from '@bn
 
 export class NetworkClient {
   private readonly socket: Socket<ServerToClientEvents, ClientToServerEvents> = io();
+  private lastSeq = 0;
 
   get playerId(): string | undefined {
     return this.socket.id;
+  }
+
+  /** Seq of the last input frame sent on this connection (0 before the first). */
+  get lastInputSeq(): number {
+    return this.lastSeq;
   }
 
   on<E extends keyof ServerToClientEvents>(event: E, handler: ServerToClientEvents[E]): () => void {
@@ -22,6 +28,7 @@ export class NetworkClient {
   }
 
   sendInput(frame: InputFrame): void {
+    this.lastSeq = Math.max(this.lastSeq, frame.seq);
     this.socket.emit('input', frame);
   }
 }

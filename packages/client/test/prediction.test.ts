@@ -43,6 +43,16 @@ describe('LocalPlayerPredictor', () => {
     expect(predictor.applyInput(keys()).frame.seq).toBe(2);
   });
 
+  it('continues numbering from firstSeq', () => {
+    const { first } = setup();
+    const predictor = new LocalPlayerPredictor('me', 0, first, 500);
+    expect(predictor.applyInput(keys()).frame.seq).toBe(500);
+    expect(predictor.applyInput(keys()).frame.seq).toBe(501);
+    // An older ack (from the previous level) must not drop the new frames.
+    predictor.reconcile(snap(first, 499));
+    expect(predictor.pending.map((f) => f.seq)).toEqual([500, 501]);
+  });
+
   it('matches server when server applies same inputs', () => {
     const { predictor } = setup();
     let world = createWorld([{ id: 'me', side: 'left' }]);

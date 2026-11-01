@@ -18,14 +18,19 @@ export class LocalPlayerPredictor {
   private readonly levelIndex: number;
   private readonly level: Level;
   private current: PlayerState;
-  private nextSeq = 1;
+  private nextSeq: number;
   private unacked: InputFrame[] = [];
 
-  constructor(playerId: PlayerId, levelIndex: number, initial: PlayerState) {
+  /**
+   * `firstSeq` must continue the connection's numbering: the server drops any frame whose seq is
+   * not above the last one it queued, and that count is not reset between levels.
+   */
+  constructor(playerId: PlayerId, levelIndex: number, initial: PlayerState, firstSeq = 1) {
     this.playerId = playerId;
     this.levelIndex = levelIndex;
     this.level = getLevel(levelIndex);
     this.current = initial;
+    this.nextSeq = firstSeq;
   }
 
   get state(): PlayerState {
