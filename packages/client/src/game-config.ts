@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import { GameOverScene } from './scenes/game-over-scene.ts';
 import { LevelScene } from './scenes/level-scene.ts';
 import { LoaderScene } from './scenes/loader-scene.ts';
 import { MenuScene } from './scenes/menu-scene.ts';
@@ -16,5 +15,5 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
   },
   audio: { disableWebAudio: true },
   pixelArt: true,
-  scene: [LoaderScene, MenuScene, LevelScene, GameOverScene],
+  scene: [LoaderScene, MenuScene, LevelScene],
 };

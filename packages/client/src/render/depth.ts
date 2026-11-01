@@ -11,4 +11,6 @@ export const Depth = {
   ownBullets: 5,
   remoteBullets: 6,
   portal: 7,
+  /** Not in the original: names stay readable over everything else. */
+  nicknames: 8,
 } as const;

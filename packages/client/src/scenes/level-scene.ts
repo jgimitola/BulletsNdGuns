@@ -7,9 +7,10 @@ import {
   PLATFORM_LAYER,
   TICK_MS,
   TILESET_NAME,
+  matchResult,
+  type LevelStarted,
   type PlayerId,
   type PlayerState,
-  type Snapshot,
 } from '@bng/shared';
 import { SoundKey, TextureKey } from '../assets/manifest.ts';
 import { KeyboardInput } from '../input/keyboard-input.ts';
@@ -25,10 +26,7 @@ import { PlayerView } from '../render/player-view.ts';
 import { getServices } from '../services.ts';
 import type { UiStore } from '../ui/store.ts';
 
-export interface LevelSceneData {
-  levelIndex: number;
-  snapshot: Snapshot;
-}
+export type LevelSceneData = LevelStarted;
 
 const SFX_VOLUME = 0.15;
 
@@ -37,6 +35,7 @@ interface LevelSession {
   network: NetworkClient;
   ui: UiStore;
   playerId: PlayerId;
+  nicknames: Record<PlayerId, string>;
   input: KeyboardInput;
   predictor: LocalPlayerPredictor;
   buffer: SnapshotBuffer;
@@ -68,7 +67,7 @@ export class LevelScene extends Phaser.Scene {
   create(): void {
     const data = this.startData;
     if (!data) throw new Error('Level scene started without level data');
-    const { levelIndex, snapshot } = data;
+    const { levelIndex, snapshot, nicknames } = data;
     const { network, ui } = getServices(this);
     const playerId = network.playerId;
     const me = snapshot.players.find((p) => p.id === playerId);
@@ -99,13 +98,21 @@ export class LevelScene extends Phaser.Scene {
       network,
       ui,
       playerId,
+      nicknames,
       input: new KeyboardInput(this),
       // Seq numbering carries on from the previous level: the server rejects anything not above it.
       predictor: new LocalPlayerPredictor(playerId, levelIndex, me, network.lastInputSeq + 1),
       buffer,
       ownBullets: new OwnBulletTracker(playerId, levelIndex),
       remoteShots: new RemoteShotTracker(playerId, levelIndex),
-      localView: new PlayerView(this, 'player', me, Depth.localPlayer),
+      localView: new PlayerView(
+        this,
+        'player',
+        me,
+        nicknames[playerId] ?? '',
+        Depth.localPlayer,
+        Depth.nicknames,
+      ),
       remoteViews: new Map(),
       ownBulletViews: new BulletViews(this, Depth.ownBullets),
       remoteBulletViews: new BulletViews(this, Depth.remoteBullets),
@@ -129,8 +136,10 @@ export class LevelScene extends Phaser.Scene {
       network.on('levelStarted', (payload) => {
         this.scene.start('level', payload);
       }),
-      network.on('matchEnded', (payload) => {
-        this.scene.start('game-over', payload);
+      network.on('matchEnded', ({ scores, reason }) => {
+        // The HTML result screen takes over; the menu scene waits for the next match.
+        ui.getState().setResult(matchResult(scores, playerId), reason);
+        this.scene.start('menu');
       }),
     ];
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -189,7 +198,13 @@ export class LevelScene extends Phaser.Scene {
       live.add(p.id);
       const view = session.remoteViews.get(p.id);
       if (view) view.update(p);
-      else session.remoteViews.set(p.id, new PlayerView(this, 'enemy', p, Depth.remotePlayers));
+      else {
+        const nickname = session.nicknames[p.id] ?? '';
+        session.remoteViews.set(
+          p.id,
+          new PlayerView(this, 'enemy', p, nickname, Depth.remotePlayers, Depth.nicknames),
+        );
+      }
     }
     for (const [id, view] of session.remoteViews) {
       if (live.has(id)) continue;

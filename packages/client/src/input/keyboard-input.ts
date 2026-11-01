@@ -11,17 +11,14 @@ export class KeyboardInput {
     const keyboard = scene.input.keyboard;
     if (!keyboard) throw new Error('Keyboard input is not available');
     const { KeyCodes } = Phaser.Input.Keyboard;
-    // The scene's KeyboardPlugin removes these keys itself when the scene shuts down.
-    // addKeys also captures them (preventDefault on window). The shutdown above leaves that capture
-    // in the game-wide KeyboardManager, so from the first level on, for the life of the page, an
-    // HTML text input would not receive W/A/D/SPACE: call keyboard.removeCapture or
-    // disableGlobalCapture when such an input arrives.
-    this.keys = keyboard.addKeys({
-      W: KeyCodes.W,
-      A: KeyCodes.A,
-      D: KeyCodes.D,
-      SPACE: KeyCodes.SPACE,
-    }) as Record<ControlKey, Phaser.Input.Keyboard.Key>;
+    const codes = { W: KeyCodes.W, A: KeyCodes.A, D: KeyCodes.D, SPACE: KeyCodes.SPACE };
+    // addKeys also captures them (preventDefault on window). The scene's KeyboardPlugin removes the
+    // keys itself when the scene shuts down but leaves the capture in the game-wide KeyboardManager,
+    // which would keep W/A/D/SPACE out of the HTML text fields after a match. Release it here.
+    this.keys = keyboard.addKeys(codes) as Record<ControlKey, Phaser.Input.Keyboard.Key>;
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      keyboard.removeCapture(Object.values(codes));
+    });
   }
 
   read(): InputKeys {

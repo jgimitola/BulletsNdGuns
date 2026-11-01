@@ -1,3 +1,4 @@
+import { NICKNAME_MAX_LENGTH, parseNickname } from '@bng/shared';
 import { t } from '../../i18n/index.ts';
 import { CreditsDialog } from '../dialogs/CreditsDialog.tsx';
 import { HowToPlayDialog } from '../dialogs/HowToPlayDialog.tsx';
@@ -6,12 +7,12 @@ import { useUi, useUiStore } from '../UiStoreContext.tsx';
 
 export function MenuScreen() {
   const store = useUiStore();
-  const waiting = useUi((s) => s.waiting);
+  const nickname = useUi((s) => s.nickname);
+  const valid = parseNickname(nickname) !== null;
   return (
-    <div className="screen screen--menu interactive">
+    <div className="screen screen--menu screen--above-strip interactive">
       <div className="brick-strip" />
       <CreditsDialog
-        returnFocus={!waiting}
         trigger={
           <button
             type="button"
@@ -26,24 +27,40 @@ export function MenuScreen() {
         <span>{t('menu.titleTop')}</span>
         <span>{t('menu.titleBottom')}</span>
       </h1>
-      {waiting ? (
-        // Not a button: once clicked there is nothing left to press, and SPACE must reach the game.
-        <div className="pixel-button pixel-button--static blink" role="status">
-          {t('menu.waiting')}
-        </div>
-      ) : (
+      <form
+        className="menu__form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          store.getState().openRooms();
+        }}
+      >
+        <label className="field">
+          <span className="field__label">{t('menu.nickname')}</span>
+          <input
+            className="pixel-input"
+            value={nickname}
+            // Room for surrounding spaces, which are trimmed; the length check is parseNickname's.
+            maxLength={NICKNAME_MAX_LENGTH + 8}
+            autoComplete="nickname"
+            spellCheck={false}
+            aria-invalid={nickname !== '' && !valid}
+            aria-describedby="nickname-hint"
+            onChange={(event) => store.getState().setNickname(event.target.value)}
+          />
+          <span id="nickname-hint" className="field__hint">
+            {t('menu.nicknameHint', { max: NICKNAME_MAX_LENGTH })}
+          </span>
+        </label>
         <button
-          type="button"
+          type="submit"
           className="pixel-button pixel-button--primary"
+          disabled={!valid}
           onPointerEnter={playHoverSound}
-          onClick={() => store.getState().ready()}
         >
           {t('menu.play')}
         </button>
-      )}
+      </form>
       <HowToPlayDialog
-        // While waiting, a focused trigger would reopen the dialog on SPACE instead of doing nothing.
-        returnFocus={!waiting}
         trigger={
           <button type="button" className="pixel-button" onPointerEnter={playHoverSound}>
             {t('menu.howToPlay')}
