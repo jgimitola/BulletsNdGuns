@@ -163,6 +163,63 @@ describe('moveBox', () => {
     expect(r.vy).toBe(0);
   });
 
+  describe('a box overlapping a wall from the side', () => {
+    // Wall: column 3, rows 0-5 (x 96..128, y 0..180). Floor: row 9 (top 270).
+    const grid = gridFromRows([
+      '...#....',
+      '...#....',
+      '...#....',
+      '...#....',
+      '...#....',
+      '...#....',
+      '........',
+      '........',
+      '........',
+      '########',
+    ]);
+    const x = 3 * 32 - 27.6 + 2; // 2 px into the wall's left face
+
+    /** Falls for `ticks` steps with gravity re-applied, returning every result. */
+    function fall(y: number, ticks: number): MoveResult[] {
+      const results: MoveResult[] = [];
+      let box: Rect = { x, y, width: 27.6, height: 34.5 };
+      let vy = 25;
+      for (let i = 0; i < ticks; i++) {
+        const r = step(box, 0, vy, grid);
+        results.push(r);
+        box = r.box;
+        vy = r.vy + 25;
+      }
+      return results;
+    }
+
+    test('never climbs the wall', () => {
+      // Bottom edge 5 px into row 4, mid-wall: the closed tile above row 4 must stop any lift.
+      const start = 120 + 5 - 34.5;
+      let prevY = start;
+      for (const r of fall(start, 10)) {
+        expect(r.box.y).toBeGreaterThanOrEqual(prevY);
+        prevY = r.box.y;
+      }
+    });
+
+    test('falls past the bottom of the wall and lands on the floor', () => {
+      // Bottom edge 2 px into row 5, the wall's last tile.
+      const results = fall(150 + 2 - 34.5, 60);
+      const landed = results.findIndex((r) => r.contacts.down);
+      expect(landed).toBeGreaterThan(0);
+      for (const r of results.slice(0, landed)) expect(r.contacts.down).toBe(false);
+      expect(results[landed]!.box.y + 34.5).toBeCloseTo(270, 9);
+    });
+  });
+
+  test('a box sunk into the floor beyond the depenetration bound is not lifted', () => {
+    const grid = gridFromRows(['....', '....', '....', '####', '####']);
+    const floorTop = 3 * 30;
+    const r = step({ x: 40, y: floorTop - 34.5 + 10, width: 27.6, height: 34.5 }, 0, 25, grid);
+    expect(r.box.y).toBeGreaterThan(floorTop - 34.5 + 10 - 1e-9);
+  });
+
   test('does not mutate its input', () => {
     const grid = gridFromRows(['....', '....']);
     const box: Rect = { x: 10, y: 10, width: 20, height: 20 };

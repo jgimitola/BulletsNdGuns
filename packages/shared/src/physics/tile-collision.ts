@@ -34,6 +34,13 @@ export interface MoveResult {
  */
 const EPS = 1e-6;
 
+/**
+ * Deepest a box may start inside the tile it is moving into and still be pushed back out of
+ * it. A few px covers boxes placed slightly inside a floor; anything deeper is not a small
+ * placement error, and lifting it could carry a box up through a whole tile.
+ */
+const MAX_DEPENETRATION_PX = 4;
+
 interface AxisResult {
   pos: number;
   hitNegative: boolean;
@@ -41,11 +48,45 @@ interface AxisResult {
 }
 
 /**
+ * Position that pushes a box back out of the tile row its leading edge already sits in (the
+ * tile it is moving into), or null to sweep normally. Only for a shallow overlap (`MAX_DEPENETRATION_PX`) and only when every solid
+ * tile there has an open face in the push direction, i.e. no solid tile right behind it. A box
+ * overlapping a wall from the side always has wall behind the tile it overlaps, so it is never
+ * lifted and cannot climb the wall a tile per step.
+ */
+function pushOutOfLeadingTile(
+  lo: number,
+  size: number,
+  delta: number,
+  tile: number,
+  count: number,
+  b0: number,
+  b1: number,
+  solid: (a: number, b: number) => boolean,
+): number | null {
+  if (delta === 0) return null;
+  const forward = delta > 0;
+  const lead = forward ? Math.floor((lo + size - EPS) / tile) : Math.floor((lo + EPS) / tile);
+  if (lead < 0 || lead >= count) return null;
+  const depth = forward ? lo + size - lead * tile : (lead + 1) * tile - lo;
+  if (depth > MAX_DEPENETRATION_PX) return null;
+  const behind = forward ? lead - 1 : lead + 1;
+  let sunk = false;
+  for (let b = b0; b <= b1; b++) {
+    if (!solid(lead, b)) continue;
+    if (solid(behind, b)) return null;
+    sunk = true;
+  }
+  if (!sunk) return null;
+  return forward ? lead * tile - size : (lead + 1) * tile;
+}
+
+/**
  * Sweeps one axis. `lo`/`size` describe the box on the moving axis and `crossLo`/`crossSize`
  * on the other; `solid(a, b)` takes the tile index along the moving axis, then across it.
  * Scanning every tile the leading edge crosses (rather than testing the end position) is what
- * stops fast fallers from tunnelling through thin platforms. `fromLeadingTile` also scans the
- * tile the leading edge already sits in, so a box placed slightly inside it is pushed back out.
+ * stops fast fallers from tunnelling through thin platforms. With `depenetrate`, a box that
+ * starts slightly inside the tile it is moving into is first pushed back out of it.
  */
 function sweepAxis(
   lo: number,
@@ -58,7 +99,7 @@ function sweepAxis(
   count: number,
   crossCount: number,
   solid: (a: number, b: number) => boolean,
-  fromLeadingTile: boolean,
+  depenetrate: boolean,
 ): AxisResult {
   const b0 = Math.max(0, Math.floor((crossLo + EPS) / crossTile));
   const b1 = Math.min(crossCount - 1, Math.floor((crossLo + crossSize - EPS) / crossTile));
@@ -71,11 +112,18 @@ function sweepAxis(
   let hitNegative = false;
   let hitPositive = false;
 
-  // The plain scan starts past the tile holding the leading edge: a box in a legal position
-  // only touches it.
-  const skip = fromLeadingTile ? 0 : 1;
-  if (delta > 0) {
-    const first = Math.floor((lo + size - EPS) / tile) + skip;
+  // A box that starts slightly inside the tile it is moving into goes back out, not through.
+  const pushed = depenetrate
+    ? pushOutOfLeadingTile(lo, size, delta, tile, count, b0, b1, solid)
+    : null;
+  if (pushed !== null) {
+    pos = pushed;
+    if (delta > 0) hitPositive = true;
+    else hitNegative = true;
+  } else if (delta > 0) {
+    // The scan starts past the tile holding the leading edge: a box in a legal position only
+    // touches it.
+    const first = Math.floor((lo + size - EPS) / tile) + 1;
     const last = Math.min(count - 1, Math.floor((lo + size + delta - EPS) / tile));
     for (let a = Math.max(first, 0); a <= last; a++) {
       if (blockedAt(a)) {
@@ -85,7 +133,7 @@ function sweepAxis(
       }
     }
   } else if (delta < 0) {
-    const first = Math.min(count, Math.floor((lo + EPS) / tile) + 1 - skip) - 1;
+    const first = Math.min(count, Math.floor((lo + EPS) / tile)) - 1;
     const last = Math.max(0, Math.floor((lo + delta + EPS) / tile));
     for (let a = first; a >= last; a--) {
       if (blockedAt(a)) {
@@ -136,9 +184,9 @@ function sweepY(box: Rect, dy: number, x: number, grid: TileGrid): AxisResult {
     grid.rows,
     grid.cols,
     (row, col) => grid.isSolid(col, row),
-    // Converted spawns sink up to a few px into the floor, and gravity always moves Y, so the
-    // first step lifts them out. X keeps the plain scan: undoing a floor overlap sideways
-    // would shove the box along the floor.
+    // Gravity moves Y every step, so a box that starts slightly inside a floor is lifted out on
+    // its first step. X does not depenetrate: undoing a floor overlap sideways would shove the
+    // box along the floor.
     true,
   );
 }
@@ -165,7 +213,13 @@ function isFree(grid: TileGrid, x: number, y: number, width: number, height: num
  * 27.6 px body could never be relied on to rise through a 32 px gap. Returns the shifted x, or
  * null when no shift within `maxPx` leaves the box free both now and at its risen height.
  */
-function headNudge(box: Rect, x: number, riseY: number, grid: TileGrid, maxPx: number): number | null {
+function headNudge(
+  box: Rect,
+  x: number,
+  riseY: number,
+  grid: TileGrid,
+  maxPx: number,
+): number | null {
   const tw = grid.tileWidth;
   // Shifts that put an edge exactly on the next tile boundary: the least that clears a column.
   const right = (Math.floor((x + EPS) / tw) + 1) * tw - x;
