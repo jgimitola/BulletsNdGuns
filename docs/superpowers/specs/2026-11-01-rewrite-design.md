@@ -53,8 +53,8 @@ Extracted from the original code (`archive/original`). The rewrite must reproduc
 
 ### Player
 - Sprite sheet frames 27x23, drawn at scale 2.3, origin centre.
-- Arcade body: size 12x15, offset (2, 8) facing right; offset (12, 8) when flipped (facing left). These are Phaser arcade values on a scaled sprite, so the effective world-space box must be computed the way Phaser 3 arcade does (the builder must verify the numbers against the original running game, e.g. by logging `body.x/y/width/height` in the archive build).
-- "Parkour zone" in levels 1 and 2 only: while `256 < x < 576` and `y < 90`, body width becomes 3 with offset (6, 8) facing right or (18, 8) facing left.
+- Arcade body: size 12x15, offset (2, 8) facing right; offset (12, 8) when flipped (facing left). These are Phaser arcade values on a scaled sprite, so the effective world-space box must be computed the way Phaser 3 arcade does (the builder must verify the numbers against the original running game, e.g. by logging `body.x/y/width/height` in the archive build). (Superseded by 2026-11-02-movement-feel-design.md: one press, one action.)
+- "Parkour zone" in levels 1 and 2 only: while `256 < x < 576` and `y < 90`, body width becomes 3 with offset (6, 8) facing right or (18, 8) facing left. (Superseded by 2026-11-02-movement-feel-design.md: one press, one action.)
 - Gravity 1500 px/s² downward. Horizontal speed 270 px/s. Jump velocity -525 px/s, only when on the floor. Player collides with world bounds.
 - Controls: `A` left (takes priority over `D`), `D` right, neither = stop instantly (no acceleration). `W` jump. `SPACE` shoot. Moving left sets facing left; moving right sets facing right.
 - Animations: idle frame 7; run frames 0-5 at 6 fps; jump frame 9 (rising); fall frame 10 (falling); shoot frame 8. Shoot animation shows while `SPACE` is held and ammo > 0; otherwise on floor: idle if not moving horizontally, run if moving; in air: jump if rising, fall if falling. Remote players use the enemy sprite sheet with the same frames.
@@ -93,7 +93,7 @@ Extracted from the original code (`archive/original`). The rewrite must reproduc
 - Jump sound volume 0.15.
 
 ### Details easy to miss
-- Holding `W` re-jumps on every landing; holding `SPACE` fires every 1000 ms while ammo lasts.
+- Holding `W` re-jumps on every landing; holding `SPACE` fires every 1000 ms while ammo lasts. (Superseded by 2026-11-02-movement-feel-design.md: one press, one action.)
 - Players do not collide with each other; they pass through.
 - No player limit (none today).
 - In-flight bullets do not carry over to the next level.

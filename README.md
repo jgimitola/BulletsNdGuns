@@ -38,7 +38,7 @@ The server and shared code run as TypeScript directly through Node 24 type strip
 
 npm workspaces monorepo:
 
-- `packages/shared`: pure TypeScript, no Phaser or Node APIs. Fixed-step physics (AABB against the tile grid), the simulation (`step(state, inputs, dt)`), the level registry (Tiled maps, spawns, pickups, portal) and the network protocol types.
+- `packages/shared`: pure TypeScript, no Phaser or Node APIs. Fixed-step physics (`moveBox`: swept per-axis tile collision with corner assists, head nudge and ledge catch, tuned from the single `MOVEMENT` object), the simulation (`step(state, inputs, dt)`), the level registry (Tiled maps, spawns, pickups, portal) and the network protocol types.
 - `packages/server`: Express 5 (static client, `/healthz`, `/api/rooms`), Socket.io wiring, and the `Room` / `RoomManager` that own matches.
 - `packages/client`: Phaser 4 renderer, Vite build, input, networking and i18n.
 
