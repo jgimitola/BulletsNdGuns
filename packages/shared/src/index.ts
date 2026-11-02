@@ -12,3 +12,5 @@ export * from './simulation/player.ts';
 export * from './simulation/bullet.ts';
 export * from './simulation/world.ts';
 export * from './simulation/match-result.ts';
+export * from './simulation/movement-tuning.ts';
+export * from './simulation/horizontal-velocity.ts';
