@@ -248,14 +248,100 @@ test('no jump while airborne', () => {
   expect(r.player.vy).toBeGreaterThan(airborne.vy);
 });
 
-test('pressing jump every tick re-jumps the tick after landing', () => {
+test('press while grounded jumps on the same tick', () => {
   const start = settle(createPlayer('a', 'left', L1));
-  const results = run(start, 120, { jumpPressed: true });
-  expect(results[0]!.jumped).toBe(true);
-  const landed = results.findIndex((r, i) => i > 0 && r.player.onFloor);
+  const r = stepPlayer(start, input({ jumpPressed: true }), L1);
+  expect(r.jumped).toBe(true);
+  expect(r.player.vy).toBeLessThan(0);
+});
+
+test('holding jump through a landing does not jump again', () => {
+  const start = settle(createPlayer('a', 'left', L1));
+  const first = stepPlayer(start, input({ jumpPressed: true }), L1);
+  const rest = run(first.player, 120, { jumpPressed: false });
+  expect(rest.some((r) => r.player.onFloor)).toBe(true);
+  expect([first, ...rest].filter((r) => r.jumped)).toHaveLength(1);
+});
+
+/** Index of the tick that lands, dropping from mid-air with no input. */
+function landingIndex(from: PlayerState): number {
+  const landed = run(from, 120, {}).findIndex((r) => r.player.onFloor);
   expect(landed).toBeGreaterThan(0);
-  expect(results.slice(1, landed + 1).every((r) => !r.jumped)).toBe(true);
-  expect(results[landed + 1]!.jumped).toBe(true);
+  return landed;
+}
+
+/** Drops from mid-air, pressing jump once at tick `pressAt` (0-based); returns each tick's `jumped`. */
+function dropPressingAt(pressAt: number, ticks: number): boolean[] {
+  let p: PlayerState = { ...createPlayer('a', 'left', L1), x: 300, y: 400 };
+  const jumps: boolean[] = [];
+  for (let i = 0; i < ticks; i++) {
+    const r = stepPlayer(p, input({ jumpPressed: i === pressAt }), L1);
+    jumps.push(r.jumped);
+    p = r.player;
+  }
+  return jumps;
+}
+
+test('buffered press N-1 ticks before the first on-floor tick jumps; N before does not', () => {
+  const air = { ...createPlayer('a', 'left', L1), x: 300, y: 400 };
+  const landing = landingIndex(air);
+  // The first tick that starts on the floor is landing + 1; a press on tick p is honoured p..p+N-1.
+  const first = landing + 1;
+  const n = MOVEMENT.jumpBufferTicks;
+  const honoured = dropPressingAt(first - (n - 1), landing + 4);
+  expect(honoured.indexOf(true)).toBe(first);
+  expect(honoured.filter(Boolean)).toHaveLength(1);
+  expect(dropPressingAt(first - n, landing + 4).some(Boolean)).toBe(false);
+});
+
+/** Walks off the level 1 block's right edge; returns the state after tick q (first airborne tick). */
+function walkedOffLedge(): PlayerState {
+  const blockRight = 160;
+  const blockTop = 450;
+  let p = standingAt(blockRight + 2 - 27.6 / 2, blockTop - 34.5 / 2, 'right');
+  expect(p.onFloor).toBe(true);
+  for (let i = 0; i < 60 && p.onFloor; i++) p = stepPlayer(p, input({ right: true }), L1).player;
+  expect(p.onFloor).toBe(false);
+  expect(p.coyoteTicks).toBe(MOVEMENT.coyoteTicks);
+  return p;
+}
+
+/** Presses jump on tick q+k after walking off (k >= 1); the ticks between are neutral. */
+function jumpedAfterLedge(k: number, extraPressAt?: number): boolean[] {
+  let p = walkedOffLedge();
+  const jumps: boolean[] = [];
+  for (let i = 1; i <= k + 1; i++) {
+    const press = i === k || i === extraPressAt;
+    const r = stepPlayer(p, input({ jumpPressed: press }), L1);
+    jumps.push(r.jumped);
+    p = r.player;
+  }
+  return jumps;
+}
+
+test('coyote: jump N ticks after walking off a ledge jumps; N+1 does not', () => {
+  const n = MOVEMENT.coyoteTicks;
+  expect(jumpedAfterLedge(n)[n - 1]).toBe(true);
+  expect(jumpedAfterLedge(n + 1).some(Boolean)).toBe(false);
+  expect(jumpedAfterLedge(1)[0]).toBe(true);
+});
+
+test('coyote is spent by the jump', () => {
+  // Second press lands inside the original window but finds it spent.
+  const jumps = jumpedAfterLedge(2, 4);
+  expect(jumps.filter(Boolean)).toHaveLength(1);
+  expect(jumps[1]).toBe(true);
+});
+
+test('a jump off the floor does not start coyote time', () => {
+  const start = settle(createPlayer('a', 'left', L1));
+  const r = stepPlayer(start, input({ jumpPressed: true }), L1);
+  expect([r.player.coyoteTicks, r.player.jumpBufferTicks]).toEqual([0, 0]);
+});
+
+test('landing clears coyote time', () => {
+  const landed = run({ ...createPlayer('a', 'left', L1), x: 300, y: 400 }, 120, {}).at(-1)!.player;
+  expect(landed.coyoteTicks).toBe(0);
 });
 
 test('a fall lands flush on the floor and stops', () => {

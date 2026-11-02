@@ -210,13 +210,40 @@ function move(p: PlayerState, level: Level): PlayerState {
   };
 }
 
+/** A press stays pending for the tuning window, so one slightly before landing still jumps. */
+function bufferJump(p: PlayerState, input: InputFrame): PlayerState {
+  return input.jumpPressed ? { ...p, jumpBufferTicks: MOVEMENT.jumpBufferTicks } : p;
+}
+
+/**
+ * Jumps when a press is pending and the player stands on the floor or just left it. `prev` is the
+ * state the tick started from: its coyote count has not been decremented yet, so a window set to N
+ * on the tick the player walked off covers exactly the next N ticks.
+ */
+function jump(prev: PlayerState, p: PlayerState): { player: PlayerState; jumped: boolean } {
+  const grounded = prev.onFloor || prev.coyoteTicks > 0;
+  if (p.jumpBufferTicks <= 0 || !grounded) return { player: p, jumped: false };
+  return { player: { ...p, vy: JUMP_VELOCITY, jumpBufferTicks: 0, coyoteTicks: 0 }, jumped: true };
+}
+
+/**
+ * Starts coyote time on the tick a player walks off a ledge (not when it jumps off), and ends it
+ * on landing so a stale window cannot grant a second jump.
+ */
+function coyoteAfterMove(prev: PlayerState, p: PlayerState, jumped: boolean): PlayerState {
+  if (p.onFloor) return { ...p, coyoteTicks: 0 };
+  if (prev.onFloor && !jumped) return { ...p, coyoteTicks: MOVEMENT.coyoteTicks };
+  return p;
+}
+
 /** One 60 Hz tick for one player. Pure: returns a new state. */
 export function stepPlayer(player: PlayerState, input: InputFrame, level: Level): PlayerStepResult {
   // 1. Timers count down before anything below can set one, so a fresh value lasts in full.
   let next = tickTimers(player);
 
-  // 2. Animation, from the state before this tick's input is applied.
-  next.anim = animationFor(player, input);
+  // 2. Buffer the jump press, so it is already pending when the jump (6) looks for it and a press
+  //    on the floor fires on the same tick.
+  next = bufferJump(next, input);
 
   // 3. Facing, before the shot so a bullet fired while turning leaves in the new direction.
   const direction = directionOf(input);
@@ -230,16 +257,24 @@ export function stepPlayer(player: PlayerState, input: InputFrame, level: Level)
   //    only known after the move.
   next.vx = nextHorizontalVelocity(player.vx, direction, player.onFloor);
 
-  // 6. Jump, from the floor only, judged by last tick's contact for the same reason.
-  const jumped = input.jumpPressed && player.onFloor;
-  if (jumped) next.vy = JUMP_VELOCITY;
+  // 6. Jump, judged by last tick's contact for the same reason.
+  const jumpResult = jump(player, next);
+  next = jumpResult.player;
+  const jumped = jumpResult.jumped;
 
   // 7. Gravity after the jump, so the jump tick already includes one tick of it: that is what
-  //    gives the original's 87.5 px apex.
+  //    gives the original's 87.5 px apex. It also runs for a resting player, whose downward sweep
+  //    every tick is what reports contacts.down; without it onFloor would flicker and jumps be lost.
   next.vy += GRAVITY_Y * TICK_SECONDS;
 
-  // 8-9. Move and collide with this tick's velocities; the down contact becomes onFloor.
+  // 8. Move and collide with this tick's velocities; the down contact becomes onFloor.
   next = move(next, level);
+
+  // 9. Ground bookkeeping: coyote starts or ends depending on what the move found.
+  next = coyoteAfterMove(player, next, jumped);
+
+  // 10 (still pre-tick until the animation task). Animation, from the state before this tick.
+  next.anim = animationFor(player, input);
 
   return { player: next, bullet: shot.bullet, jumped };
 }

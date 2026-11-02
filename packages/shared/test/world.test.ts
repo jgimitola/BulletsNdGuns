@@ -165,8 +165,9 @@ test('a shot player respawns at rest, keeping facing, ammo and score', () => {
   const moving = place(settled(), 'a', {
     vx: 270,
     vy: -300,
+    // Airborne with a pending press and no coyote time, so the stale timer does not fire a jump.
+    onFloor: false,
     jumpBufferTicks: 3,
-    coyoteTicks: 2,
     facing: 'left',
     ammo: 4,
     score: 2,
