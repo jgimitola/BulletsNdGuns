@@ -229,6 +229,7 @@ describe('moveBox', () => {
 });
 
 describe('corner assists', () => {
+  // Explicit assist values for moveBox, independent of the game's MOVEMENT tuning.
   const ASSISTS: CornerAssists = { headNudgeMaxPx: 12, ledgeCatchMaxPx: 8 };
   const W = 27.6;
   const H = 34.5;

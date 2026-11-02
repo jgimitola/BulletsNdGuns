@@ -12,7 +12,7 @@ export const BODY_HEIGHT = 15 * PLAYER_SCALE;
 /**
  * Sprite centre minus hitbox centre, per facing: the art is not centred in its frame. Facing
  * right the body spans source px 2-14 of the 27 px frame; facing left the art is mirrored.
- * The opaque art (torso and feet) spans px 3-13, one px off the hitbox centre, and flipX maps
+ * The opaque art (torso and feet) spans px 3-13 (centre 8.5 against the hitbox centre 8), half a source px off, and flipX maps
  * column x to 26-x. A true mirror (-5.5) would shift the art 1 px when turning; -4.5, the
  * original game's offset 12, keeps the same art columns over the same spot.
  */

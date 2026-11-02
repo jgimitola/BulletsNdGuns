@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import {
   LEVELS,
+  INPUT_STARVATION_TICKS,
+  MOVEMENT,
   NEVER_SHOT_TICKS,
   STARTING_AMMO,
   getLevel,
@@ -277,12 +279,26 @@ describe('Room', () => {
       vxs.push(room.worldForTest()!.players.find((p) => p.id === 'a')!.vx);
       xs.push(xOf(room, 'a'));
     }
-    // Ticks 1-7 hold right (the frame, then 6 reuses): tick 1 starts airborne at the spawn, so
-    // it gains 270 / 9 (air accel); then +45 per tick on the ground up to 270. From tick 8 the
-    // keys are neutral and the player brakes at 270 / 4 per tick to rest.
-    expect(vxs).toEqual([30, 75, 120, 165, 210, 255, 270, 202.5, 135, 67.5, 0, 0, 0, 0]);
-    for (let t = 1; t <= 10; t++) expect(xs[t]).toBeGreaterThan(xs[t - 1]!);
-    for (let t = 11; t <= 14; t++) expect(xs[t]).toBe(xs[10]);
+    // Ticks 1..hold hold right (the frame, then INPUT_STARVATION_TICKS reuses): tick 1 starts
+    // airborne at the spawn, so it gains one air accel step; then one ground accel step per tick up
+    // to runSpeed. After that the keys are neutral and the player brakes one ground decel step per
+    // tick to rest.
+    const { runSpeed, groundAccelTicks, groundDecelTicks, airAccelTicks } = MOVEMENT;
+    const hold = 1 + INPUT_STARVATION_TICKS;
+    const expected: number[] = [];
+    let v = 0;
+    for (let t = 1; t <= 14; t++) {
+      if (t > hold) v = Math.max(0, v - runSpeed / groundDecelTicks);
+      else v = Math.min(runSpeed, v + runSpeed / (t === 1 ? airAccelTicks : groundAccelTicks));
+      expected.push(v);
+    }
+    expect(vxs).toHaveLength(14);
+    vxs.forEach((vx, i) => expect(vx).toBeCloseTo(expected[i]!, 9));
+    // The player moves on every tick that ends with a nonzero velocity and stands still otherwise.
+    for (let t = 1; t <= 14; t++) {
+      if (expected[t - 1]! > 0) expect(xs[t]).toBeGreaterThan(xs[t - 1]!);
+      else expect(xs[t]).toBe(xs[t - 1]);
+    }
     expect(room.ackSeqForTest('a')).toBe(1);
   });
 

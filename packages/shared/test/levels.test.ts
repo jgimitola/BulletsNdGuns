@@ -36,7 +36,7 @@ test('only level 3 is last', () => {
   expect([0, 1, 2].map(isLastLevel)).toEqual([false, false, true]);
 });
 
-test('no level carries a parkour zone: the full-size body crosses every corridor', () => {
+test('no level carries a parkour zone', () => {
   for (const level of LEVELS) expect(level).not.toHaveProperty('parkourZone');
 });
 
