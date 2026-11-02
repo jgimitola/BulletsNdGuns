@@ -165,7 +165,16 @@ export class Room {
     // Frames sampled in another level (in flight across a level change) or in the lobby are dropped.
     if (this.phase.kind !== 'playing' || frame.level !== this.phase.world.levelIndex) return;
     p.queue.push(frame);
-    if (p.queue.length > INPUT_QUEUE_LIMIT) p.queue.shift();
+    if (p.queue.length > INPUT_QUEUE_LIMIT) {
+      // A press is a one-tick event the client already predicted (and drew its bullet for), so
+      // losing it would desync; held keys are redundant across frames and safe to drop.
+      const droppable = p.queue.findIndex((f) => !this.hasPress(f));
+      p.queue.splice(droppable === -1 ? 0 : droppable, 1);
+    }
+  }
+
+  private hasPress(frame: InputFrame): boolean {
+    return frame.jumpPressed || frame.shootPressed;
   }
 
   /** One simulation tick; the scheduler calls it at 60 Hz. */

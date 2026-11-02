@@ -250,6 +250,23 @@ describe('Room', () => {
     expect(room.ackSeqForTest('a')).toBe(20);
   });
 
+  test('queue overflow keeps a frame with a press', () => {
+    const { room, transport } = startMatch();
+    room.queueInput('a', frame(1, { shootPressed: true }));
+    for (let s = 2; s <= 9; s++) room.queueInput('a', frame(s));
+    ticks(room, 3);
+    const pa = room.worldForTest()!.players.find((p) => p.id === 'a')!;
+    expect(pa.ammo).toBe(STARTING_AMMO - 1);
+    expect(snapshots(transport, 'a')[0]!.shots.map((s) => s.id)).toEqual(['a:1']);
+  });
+
+  test('queue overflow with a press in every frame drops the oldest', () => {
+    const { room } = startMatch();
+    for (let s = 1; s <= 9; s++) room.queueInput('a', frame(s, { jumpPressed: true }));
+    room.tick();
+    expect(room.ackSeqForTest('a')).toBe(2);
+  });
+
   test('starvation: last keys reused 6 ticks then neutral', () => {
     const { room } = startMatch();
     room.queueInput('a', frame(1, { right: true }));
