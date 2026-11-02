@@ -81,8 +81,8 @@ test('createPlayer starts at the converted side spawn facing the centre', () => 
   });
   const b = createPlayer('b', 'right', L1, 7);
   expect([b.facing, b.score]).toEqual(['left', 7]);
-  // Facing left the art is mirrored, so the horizontal offset flips sign.
-  expect(b.x).toBeCloseTo(803 + 5.5 * 2.3, 6);
+  // Facing left the art is mirrored and sits 4.5 source px right of the hitbox centre (the original's offset 12).
+  expect(b.x).toBeCloseTo(803 + 4.5 * 2.3, 6);
 });
 
 test('createPlayer: sprite draws at the original spawn', () => {
@@ -451,7 +451,7 @@ test('facing left fires negative velocity', () => {
   expect(r.bullet).not.toBeNull();
   expect(r.bullet!.vx).toBe(-600);
   expect(r.bullet!.ownerId).toBe('b');
-  expect(r.bullet!.x).toBeCloseTo(RIGHT_WALL_X - 5.5 * 2.3, 6);
+  expect(r.bullet!.x).toBeCloseTo(RIGHT_WALL_X - 4.5 * 2.3, 6);
 });
 
 test('bullet leaves from the gun in the new facing', () => {

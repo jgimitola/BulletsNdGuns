@@ -1,5 +1,12 @@
 import type Phaser from 'phaser';
-import { PLAYER_FRAME_HEIGHT, PLAYER_SCALE, WORLD_WIDTH, type PlayerState } from '@bng/shared';
+import {
+  PLAYER_FRAME_HEIGHT,
+  PLAYER_SCALE,
+  SPRITE_OFFSET_Y,
+  WORLD_WIDTH,
+  spriteCentre,
+  type PlayerState,
+} from '@bng/shared';
 import { animationKeyFor } from '../assets/animations.ts';
 import { TextureKey } from '../assets/manifest.ts';
 
@@ -31,8 +38,9 @@ export class PlayerView {
     labelDepth: number,
   ) {
     this.sheet = sheet;
+    const at = spriteCentre(state, state.facing);
     this.sprite = scene.add
-      .sprite(state.x, state.y, TextureKey[sheet])
+      .sprite(at.x, at.y, TextureKey[sheet])
       .setOrigin(0.5, 0.5)
       .setScale(PLAYER_SCALE, PLAYER_SCALE)
       .setDepth(depth);
@@ -50,13 +58,15 @@ export class PlayerView {
   }
 
   update(state: PlayerState): void {
-    this.sprite.setPosition(state.x, state.y);
+    const at = spriteCentre(state, state.facing);
+    this.sprite.setPosition(at.x, at.y);
     this.sprite.flipX = state.facing === 'left';
     this.sprite.play(animationKeyFor(this.sheet, state.anim), true);
-    // Players spawn at the world's edges: keep the whole name on screen. Whole pixels keep it crisp.
+    // The label follows the hitbox centre so it does not jump on turn. Players spawn at the
+    // world's edges: keep the whole name on screen. Whole pixels keep it crisp.
     const half = this.label.width / 2;
     const x = Math.min(Math.max(state.x, half), WORLD_WIDTH - half);
-    this.label.setPosition(Math.round(x), Math.round(state.y - NICKNAME_OFFSET_Y));
+    this.label.setPosition(Math.round(x), Math.round(state.y + SPRITE_OFFSET_Y - NICKNAME_OFFSET_Y));
   }
 
   destroy(): void {
