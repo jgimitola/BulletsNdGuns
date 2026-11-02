@@ -215,7 +215,12 @@ describe('corner assists', () => {
       expect(walk(6, -200).contacts.right).toBe(true);
     });
 
-    test('no catch under a ceiling', () => {
+    test('no catch when a tile above the ledge blocks the continued move', () => {
+      const low = gridFromRows(['..........', '.....#....', '..........', '.....#####', '##########']);
+      expect(walk(6, 100, low).contacts.right).toBe(true);
+    });
+
+    test('no catch when the raised box would overlap a ceiling tile', () => {
       const low = gridFromRows(['..........', '....#.....', '..........', '.....#####', '##########']);
       expect(walk(6, 100, low).contacts.right).toBe(true);
     });
