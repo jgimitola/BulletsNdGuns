@@ -27,13 +27,19 @@ async function* filesIn(dir: string): AsyncGenerator<string> {
  */
 function precompress(): Plugin {
   let outDir = 'dist';
+  let failed = false;
   return {
     name: 'bng:precompress',
     apply: 'build',
     configResolved(config) {
       outDir = config.build.outDir;
     },
+    buildEnd(error) {
+      failed = error !== undefined;
+    },
     async closeBundle() {
+      // closeBundle also runs after a failed build; reading a missing outDir would hide the real error.
+      if (failed) return;
       for await (const file of filesIn(outDir)) {
         if (!COMPRESSIBLE.test(file) || (await stat(file)).size < MIN_BYTES) continue;
         const source = await readFile(file);

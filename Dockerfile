@@ -2,6 +2,8 @@
 FROM node:24-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
+# The workspace tsconfigs extend it, and Vite reads the client's tsconfig while transforming.
+COPY tsconfig.base.json ./
 COPY packages ./packages
 RUN npm ci
 RUN npm run build -w @bng/client
