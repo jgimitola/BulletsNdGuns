@@ -116,9 +116,12 @@ export function respawn(p: PlayerState, level: Level): PlayerState {
   };
 }
 
-/** Animation for a player about to apply `input`; a shot shows only when it can fire. */
-export function animationFor(p: PlayerState, input: InputFrame): AnimationKey {
-  if (input.shootPressed && p.ammo > 0) return 'shoot';
+/**
+ * Animation for a player after a step. The shoot pose lasts as long as the pose timer, which only
+ * a fired bullet sets, so a refused press shows nothing.
+ */
+export function animationFor(p: PlayerState): AnimationKey {
+  if (p.shotPoseTicks > 0) return 'shoot';
   if (p.onFloor) return p.vx === 0 ? 'idle' : 'run';
   return p.vy > 0 ? 'fall' : 'jump';
 }
@@ -273,8 +276,8 @@ export function stepPlayer(player: PlayerState, input: InputFrame, level: Level)
   // 9. Ground bookkeeping: coyote starts or ends depending on what the move found.
   next = coyoteAfterMove(player, next, jumped);
 
-  // 10 (still pre-tick until the animation task). Animation, from the state before this tick.
-  next.anim = animationFor(player, input);
+  // 10. Animation, from the finished state so it matches what the player now does.
+  next.anim = animationFor(next);
 
   return { player: next, bullet: shot.bullet, jumped };
 }

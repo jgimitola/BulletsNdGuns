@@ -195,8 +195,22 @@ test('runs up to 4.5 px per tick', () => {
   expect(last.vx).toBe(270);
   expect(results.at(-1)!.player.x - results.at(-2)!.player.x).toBeCloseTo(4.5, 9);
   expect(results[0]!.player.x).toBeCloseTo(LEFT_WALL_X + 0.75, 6);
-  expect(results[0]!.player.anim).toBe('idle');
-  for (const r of results.slice(1)) expect(r.player.anim).toBe('run');
+  for (const r of results) expect(r.player.anim).toBe('run');
+});
+
+test('run while vx !== 0 on the floor, idle at 0', () => {
+  const start = settle(createPlayer('a', 'left', L1));
+  const running = run(start, 8, { right: true }).at(-1)!.player;
+  const decel = run(running, 20, {});
+  const stopped = decel.findIndex((r) => r.player.vx === 0);
+  expect(stopped).toBeGreaterThan(0);
+  for (const r of decel.slice(0, stopped)) expect(r.player.anim).toBe('run');
+  for (const r of decel.slice(stopped)) expect(r.player.anim).toBe('idle');
+});
+
+test('anim reflects this tick: the first jumping tick is already jump', () => {
+  const start = settle(createPlayer('a', 'left', L1));
+  expect(stepPlayer(start, input({ jumpPressed: true }), L1).player.anim).toBe('jump');
 });
 
 test('turning at a ledge edge does not move the hitbox or drop the player', () => {
@@ -233,10 +247,11 @@ test('jump apex is 87.5 px above floor', () => {
   expect(results[0]!.jumped).toBe(true);
   expect(results.slice(1).every((r) => !r.jumped)).toBe(true);
   expect(results.at(-1)!.player.y).toBeCloseTo(FLOOR_Y, 6);
-  // Animation is chosen before movement: on the jump tick the player was still on the floor.
-  expect(results[0]!.player.anim).toBe('idle');
+  expect(results[0]!.player.anim).toBe('jump');
   expect(results[1]!.player.anim).toBe('jump');
-  expect(results.at(-1)!.player.anim).toBe('fall');
+  // The landing tick is judged by where the player ended up, so it is already idle.
+  expect(results.at(-2)!.player.anim).toBe('fall');
+  expect(results.at(-1)!.player.anim).toBe('idle');
 });
 
 test('no jump while airborne', () => {
@@ -362,13 +377,23 @@ test('a fall lands flush on the floor and stops', () => {
   expect(r.at(-1)!.player.y).toBeCloseTo(FLOOR_Y, 9);
 });
 
-test('cooldown: shots on tick 1 and tick 62 only, ammo 2 → 0', () => {
+/** Steps with a shoot press on exactly the 0-based ticks in `pressAt`, none elsewhere. */
+function runPressing(p: PlayerState, ticks: number, pressAt: number[]): PlayerStepResult[] {
+  const results: PlayerStepResult[] = [];
+  let current = p;
+  for (let i = 0; i < ticks; i++) {
+    const r = stepPlayer(current, input({ shootPressed: pressAt.includes(i) }), L1);
+    results.push(r);
+    current = r.player;
+  }
+  return results;
+}
+
+test('a shot fires from the gun and spends one round', () => {
   const start = settle(createPlayer('a', 'left', L1));
   const firstSeq = seq + 1;
-  const results = run(start, 70, { shootPressed: true });
-  const shotTicks = results.flatMap((r, i) => (r.bullet ? [i + 1] : []));
-  expect(shotTicks).toEqual([1, 62]);
-  expect(results[0]!.bullet).toEqual({
+  const r = runPressing(start, 1, [0])[0]!;
+  expect(r.bullet).toEqual({
     id: `a:${firstSeq}`,
     ownerId: 'a',
     // The gun sits on the sprite: hitbox centre + 5.5 source px forward, then 4 up and 5 down.
@@ -376,23 +401,48 @@ test('cooldown: shots on tick 1 and tick 62 only, ammo 2 → 0', () => {
     y: expect.closeTo(FLOOR_Y - 4 * 2.3 + 5, 6),
     vx: 600,
   });
-  expect(results[61]!.bullet!.id).toBe(`a:${firstSeq + 61}`);
-  expect(results[0]!.player.ammo).toBe(1);
-  expect(results[0]!.player.ticksSinceShot).toBe(0);
-  expect(results[0]!.player.shotPoseTicks).toBe(MOVEMENT.shotPoseTicks);
-  expect(results[1]!.player.shotPoseTicks).toBe(MOVEMENT.shotPoseTicks - 1);
-  expect(results[60]!.player.ammo).toBe(1);
-  expect(results.at(-1)!.player.ammo).toBe(0);
-  expect(results[0]!.player.anim).toBe('shoot');
+  expect(r.player.ammo).toBe(1);
+  expect(r.player.ticksSinceShot).toBe(0);
 });
 
-test('no bullet with zero ammo but anim is not shoot', () => {
+test('cooldown: a press one tick early is refused, the next one fires', () => {
+  const start = settle(createPlayer('a', 'left', L1));
+  const results = runPressing(start, 70, [0, 60, 61]);
+  const shotTicks = results.flatMap((r, i) => (r.bullet ? [i] : []));
+  expect(shotTicks).toEqual([0, 61]);
+  expect(results.at(-1)!.player.ammo).toBe(0);
+});
+
+test('a shot shows the pose for exactly 12 ticks', () => {
+  const start = settle(createPlayer('a', 'left', L1));
+  const anims = runPressing(start, 14, [0]).map((r) => r.player.anim);
+  expect(MOVEMENT.shotPoseTicks).toBe(12);
+  expect(anims.slice(0, 12)).toEqual(Array(12).fill('shoot'));
+  expect(anims.slice(12)).toEqual(['idle', 'idle']);
+});
+
+test('a press on cooldown shows no pose and fires nothing', () => {
+  const start = settle(createPlayer('a', 'left', L1));
+  // Pose from the first shot has ended by tick 20, but the cooldown has not.
+  const r = runPressing(start, 21, [0, 20]);
+  expect(r[20]!.bullet).toBeNull();
+  expect(r[20]!.player.anim).toBe('idle');
+  expect(r[20]!.player.shotPoseTicks).toBe(0);
+});
+
+test('a press with no ammo shows no pose', () => {
   const start = { ...settle(createPlayer('a', 'left', L1)), ammo: 0 };
   const r = stepPlayer(start, input({ shootPressed: true }), L1);
   expect(r.bullet).toBeNull();
   expect(r.player.anim).toBe('idle');
   expect(r.player.ammo).toBe(0);
   expect(r.player.shotPoseTicks).toBe(0);
+});
+
+test('holding shoot does not fire again after the cooldown', () => {
+  const start = settle(createPlayer('a', 'left', L1));
+  const results = runPressing(start, 121, [0]);
+  expect(results.filter((r) => r.bullet)).toHaveLength(1);
 });
 
 test('facing left fires negative velocity', () => {
