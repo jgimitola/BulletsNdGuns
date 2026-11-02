@@ -145,6 +145,24 @@ describe('moveBox', () => {
     expect(r.contacts.left).toBe(true);
   });
 
+  test('a box sunk into the floor while falling is lifted back on top of it', () => {
+    // Level 1's converted spawn starts 0.45 px inside the floor; falling must not sink it further.
+    const grid = gridFromRows(['....', '....', '....', '####', '####']);
+    const floorTop = 3 * 30;
+    const r = step({ x: 40, y: floorTop - 34.5 + 0.45, width: 27.6, height: 34.5 }, 0, 25, grid);
+    expect(r.box.y + r.box.height).toBeCloseTo(floorTop, 9);
+    expect(r.contacts.down).toBe(true);
+    expect(r.vy).toBe(0);
+  });
+
+  test('a box sunk into a ceiling while rising is pushed back below it', () => {
+    const grid = gridFromRows(['####', '....', '....', '....']);
+    const r = step({ x: 40, y: 30 - 0.45, width: 27.6, height: 34.5 }, 0, -100, grid);
+    expect(r.box.y).toBeCloseTo(30, 9);
+    expect(r.contacts.up).toBe(true);
+    expect(r.vy).toBe(0);
+  });
+
   test('does not mutate its input', () => {
     const grid = gridFromRows(['....', '....']);
     const box: Rect = { x: 10, y: 10, width: 20, height: 20 };

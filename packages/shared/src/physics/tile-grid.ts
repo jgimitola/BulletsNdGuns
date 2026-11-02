@@ -1,6 +1,6 @@
-// Ported from Phaser 3.20.1 (MIT), © Richard Davey / Photon Storm
-// Sources: src/tilemaps/components/CalculateFacesWithin.js, GetTilesWithinWorldXY.js,
-// GetTilesWithin.js, WorldToTileX.js / WorldToTileY.js.
+// tilesWithin ported from Phaser 3.20.1 (MIT), © Richard Davey / Photon Storm
+// Sources: src/tilemaps/components/GetTilesWithinWorldXY.js, GetTilesWithin.js,
+// WorldToTileX.js / WorldToTileY.js.
 
 import type { Rect } from '../geometry.ts';
 import { decodeLayer, type TiledMap } from './tiled.ts';
@@ -8,10 +8,6 @@ import { decodeLayer, type TiledMap } from './tiled.ts';
 export interface Tile {
   col: number;
   row: number;
-  faceTop: boolean;
-  faceBottom: boolean;
-  faceLeft: boolean;
-  faceRight: boolean;
 }
 
 export interface TileGrid {
@@ -25,9 +21,7 @@ export interface TileGrid {
 
 /**
  * Builds the collision grid for a layer, as the original did with
- * `layer.setCollisionByExclusion(-1, true)`: every non-empty tile collides and faces are
- * recalculated (CalculateFacesWithin). A face is "interesting" unless the neighbour on that
- * side is a colliding tile; neighbours outside the map count as open, so map edges are faces.
+ * `layer.setCollisionByExclusion(-1, true)`: every non-empty tile is solid.
  */
 export function buildTileGrid(map: TiledMap, layerName: string): TileGrid {
   const gids = decodeLayer(map, layerName);
@@ -37,36 +31,20 @@ export function buildTileGrid(map: TiledMap, layerName: string): TileGrid {
   const isSolid = (col: number, row: number): boolean =>
     col >= 0 && col < cols && row >= 0 && row < rows && gids[row * cols + col] !== 0;
 
-  const tiles: (Tile | null)[] = new Array<Tile | null>(cols * rows).fill(null);
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      if (!isSolid(col, row)) continue;
-      tiles[row * cols + col] = {
-        col,
-        row,
-        faceTop: !isSolid(col, row - 1),
-        faceBottom: !isSolid(col, row + 1),
-        faceLeft: !isSolid(col - 1, row),
-        faceRight: !isSolid(col + 1, row),
-      };
-    }
-  }
-
   return {
     cols,
     rows,
     tileWidth: map.tilewidth,
     tileHeight: map.tileheight,
     isSolid,
-    tile: (col, row) =>
-      col >= 0 && col < cols && row >= 0 && row < rows ? (tiles[row * cols + col] ?? null) : null,
+    tile: (col, row) => (isSolid(col, row) ? { col, row } : null),
   };
 }
 
 /**
  * GetTilesWithinWorldXY for a layer at (0, 0) with scale 1: start columns/rows are floored,
  * end columns/rows are ceiled, the range is clipped to the map, and tiles are returned in
- * row-major order. Only solid tiles are returned (the arcade handler ignores the rest).
+ * row-major order. Only solid tiles are returned.
  */
 export function tilesWithin(grid: TileGrid, rect: Rect): Tile[] {
   let tileX = Math.floor(rect.x / grid.tileWidth);

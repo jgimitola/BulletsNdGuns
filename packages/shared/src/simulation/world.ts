@@ -9,9 +9,10 @@ import {
 } from '../levels/level-registry.ts';
 import { NEUTRAL_INPUT, type InputFrame } from '../protocol/input.ts';
 import { bulletBox, stepBullet } from './bullet.ts';
+import { bodyBox } from './player-body.ts';
 import {
-  bodyBox,
   createPlayer,
+  respawn,
   stepPlayer,
   type BulletState,
   type PlayerId,
@@ -110,8 +111,7 @@ export function stepWorld(
       bullets.push(b);
       continue;
     }
-    const spawn = level.spawns[victim.side];
-    const respawned = { ...victim, x: spawn.x, y: spawn.y };
+    const respawned = respawn(victim, level);
     players[i] = respawned;
     // A player shot this tick is already at the spawn: no pickups or portal from where it was hit.
     boxes[i] = bodyBox(respawned);

@@ -192,7 +192,8 @@ describe('server integration', () => {
             state.awayX = pb.x;
           }
         } else if (pb.x > state.awayX + 100 && ++state.respawnSnapshots === 2) {
-          // The first snapshot at the respawn tick is unclamped (x 803); the next one has settled.
+          // The first snapshot at the respawn tick is unclamped (x 815.65, the converted spawn
+          // hanging off the right edge); the next one has settled.
           resolve(snap);
         }
       });
@@ -220,7 +221,8 @@ describe('server integration', () => {
     const snap = await done;
     const pa = snap.players.find((p) => p.id === aId);
     const pb = snap.players.find((p) => p.id === bId);
-    expect(pb?.x).toBeCloseTo(775.85, 1);
+    // Hitbox centre flush against the right bound: 800 - 27.6 / 2.
+    expect(pb?.x).toBeCloseTo(786.2, 1);
     expect(pa?.ammo).toBe(1);
   }, 15000);
 

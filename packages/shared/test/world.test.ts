@@ -3,6 +3,7 @@ import { getLevel } from '../src/levels/level-registry.ts';
 import { NEUTRAL_INPUT, type InputFrame } from '../src/protocol/input.ts';
 import { stepBullet } from '../src/simulation/bullet.ts';
 import { matchResult } from '../src/simulation/match-result.ts';
+import { hitboxCentreFromSprite } from '../src/simulation/player-body.ts';
 import type { PlayerId } from '../src/simulation/player.ts';
 import {
   createWorld,
@@ -13,7 +14,10 @@ import {
   type WorldState,
 } from '../src/simulation/world.ts';
 
+const L1 = getLevel(0);
 const L2 = getLevel(1);
+/** Centre y of a hitbox (34.5 tall) resting on the level 1 floor (top 540). */
+const FLOOR_Y = 540 - 34.5 / 2;
 const NONE: ReadonlyMap<PlayerId, InputFrame> = new Map();
 
 function twoPlayers(): WorldState {
@@ -56,8 +60,10 @@ test('stepWorld is pure and increments tick', () => {
 
 test('bullet from settled left player hits settled right player on 75th tick', () => {
   let w = settled();
-  expect(player(w, 'a').x).toBeCloseTo(26.45, 6);
-  expect(player(w, 'b').x).toBeCloseTo(775.85, 6);
+  // Hitbox centres flush against the world bounds (half of the 27.6 px body in from each edge).
+  expect(player(w, 'a').x).toBeCloseTo(13.8, 6);
+  expect(player(w, 'b').x).toBeCloseTo(786.2, 6);
+  const spawnB = hitboxCentreFromSprite(L1.spawns.right, 'left');
   const events: { tick: number; e: WorldEvent }[] = [];
   for (let k = 1; k <= 80; k++) {
     const inputs = new Map<PlayerId, InputFrame>();
@@ -66,8 +72,9 @@ test('bullet from settled left player hits settled right player on 75th tick', (
     w = r.world;
     for (const e of r.events) if (e.type === 'hit') events.push({ tick: k, e });
     if (k === 75) {
-      expect(player(w, 'b').x).toBe(803);
-      expect(player(w, 'b').y).toBe(514);
+      // Respawned at the converted spawn, not yet clamped into the world by a step.
+      expect(player(w, 'b').x).toBe(spawnB.x);
+      expect(player(w, 'b').y).toBe(spawnB.y);
       expect(w.bullets).toEqual([]);
     }
   }
@@ -101,7 +108,7 @@ test('bullet removed on wall and off screen', () => {
 });
 
 test('coin pickup adds score and removes coin for everyone', () => {
-  const w = place(settled(), 'a', { x: 720, y: 513.55 });
+  const w = place(settled(), 'a', { x: 720, y: FLOOR_Y });
   const r = stepWorld(w, NONE);
   expect(r.events).toContainEqual({ type: 'pickup', kind: 'coin', pickupId: 1, playerId: 'a' });
   expect(player(r.world, 'a').score).toBe(1);
@@ -110,7 +117,7 @@ test('coin pickup adds score and removes coin for everyone', () => {
 });
 
 test('ammo pickup adds ammo', () => {
-  const w = place(settled(), 'a', { x: 440, y: 513.55 });
+  const w = place(settled(), 'a', { x: 440, y: FLOOR_Y });
   const r = stepWorld(w, NONE);
   expect(r.events).toContainEqual({ type: 'pickup', kind: 'ammo', pickupId: 1, playerId: 'a' });
   expect(player(r.world, 'a').ammo).toBe(3);
@@ -119,8 +126,8 @@ test('ammo pickup adds ammo', () => {
 
 test('same-tick coin contention goes to first joined player', () => {
   let w = settled();
-  w = place(w, 'a', { x: 720, y: 513.55 });
-  w = place(w, 'b', { x: 720, y: 513.55 });
+  w = place(w, 'a', { x: 720, y: FLOOR_Y });
+  w = place(w, 'b', { x: 720, y: FLOOR_Y });
   const r = stepWorld(w, NONE);
   const coinEvents = r.events.filter((e) => e.type === 'pickup');
   expect(coinEvents).toEqual([{ type: 'pickup', kind: 'coin', pickupId: 1, playerId: 'a' }]);
@@ -147,15 +154,41 @@ function shotAt(w: WorldState, id: PlayerId, x: number, y: number): WorldState {
 }
 
 test('a player shot on a coin respawns without collecting it', () => {
-  const r = stepWorld(shotAt(settled(), 'a', 720, 513.55), NONE);
+  const r = stepWorld(shotAt(settled(), 'a', 720, FLOOR_Y), NONE);
   expect(r.events.map((e) => e.type)).toEqual(['hit']);
-  expect(player(r.world, 'a').x).toBe(getLevel(0).spawns.left.x);
+  expect(player(r.world, 'a').x).toBe(hitboxCentreFromSprite(L1.spawns.left, 'right').x);
   expect(player(r.world, 'a').score).toBe(0);
   expect(r.world.coins).toHaveLength(12);
 });
 
+test('a shot player respawns at rest, keeping facing, ammo and score', () => {
+  const moving = place(settled(), 'a', {
+    vx: 270,
+    vy: -300,
+    jumpBufferTicks: 3,
+    coyoteTicks: 2,
+    facing: 'left',
+    ammo: 4,
+    score: 2,
+  });
+  const r = stepWorld(shotAt(moving, 'a', 400, 200), NONE);
+  expect(r.events.map((e) => e.type)).toEqual(['hit']);
+  const spawn = hitboxCentreFromSprite(L1.spawns.left, 'right');
+  expect(player(r.world, 'a')).toMatchObject({
+    x: spawn.x,
+    y: spawn.y,
+    vx: 0,
+    vy: 0,
+    jumpBufferTicks: 0,
+    coyoteTicks: 0,
+    facing: 'left',
+    ammo: 4,
+    score: 2,
+  });
+});
+
 test('a player shot on an ammo pickup respawns without collecting it', () => {
-  const r = stepWorld(shotAt(settled(), 'a', 440, 513.55), NONE);
+  const r = stepWorld(shotAt(settled(), 'a', 440, FLOOR_Y), NONE);
   expect(r.events.map((e) => e.type)).toEqual(['hit']);
   expect(player(r.world, 'a').ammo).toBe(2);
   expect(r.world.ammoPickups).toHaveLength(6);
@@ -175,9 +208,10 @@ test('startLevel keeps score, resets ammo, spawns, bullets, pickups', () => {
   expect(n.levelIndex).toBe(1);
   expect(player(n, 'a').score).toBe(5);
   expect(player(n, 'a').ammo).toBe(2);
-  expect(player(n, 'a').x).toBe(L2.spawns.left.x);
-  expect(player(n, 'a').y).toBe(L2.spawns.left.y);
-  expect(player(n, 'b').x).toBe(L2.spawns.right.x);
+  const spawnA = hitboxCentreFromSprite(L2.spawns.left, 'right');
+  expect(player(n, 'a').x).toBe(spawnA.x);
+  expect(player(n, 'a').y).toBe(spawnA.y);
+  expect(player(n, 'b').x).toBe(hitboxCentreFromSprite(L2.spawns.right, 'left').x);
   expect(n.bullets).toEqual([]);
   expect(n.coins).toHaveLength(13);
   expect(n.ammoPickups).toHaveLength(6);

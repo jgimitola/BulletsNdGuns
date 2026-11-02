@@ -15,20 +15,16 @@ export interface Pickup {
   y: number;
 }
 
-/** Strict bounds: minX < x < maxX && y < maxY. */
-export interface ParkourZone {
-  minX: number;
-  maxX: number;
-  maxY: number;
-}
-
 export interface LevelConfig {
   index: number;
   tilemapKey: string;
   map: TiledMap;
+  /**
+   * Sprite centres, as authored in the original game so they stay traceable to it;
+   * `createPlayer` converts them to hitbox centres.
+   */
   spawns: Record<Side, Vec2>;
   portal: Vec2;
-  parkourZone: ParkourZone | null;
   ammoPickups: readonly Pickup[];
   coins: readonly Pickup[];
 }
@@ -44,7 +40,6 @@ export const LEVELS: readonly LevelConfig[] = [
     map: level1Map,
     spawns: { left: { x: 13, y: 514 }, right: { x: 803, y: 514 } },
     portal: { x: 704, y: 60 },
-    parkourZone: { minX: 256, maxX: 576, maxY: 90 },
     ammoPickups: [
       { id: 1, x: 416, y: 540 },
       { id: 2, x: 352, y: 540 },
@@ -74,7 +69,6 @@ export const LEVELS: readonly LevelConfig[] = [
     map: level2Map,
     spawns: { left: { x: 96, y: 546 }, right: { x: 709, y: 543 } },
     portal: { x: 32, y: 60 },
-    parkourZone: { minX: 256, maxX: 576, maxY: 90 },
     ammoPickups: [
       { id: 1, x: 384, y: 390 },
       { id: 2, x: 64, y: 450 },
@@ -105,7 +99,6 @@ export const LEVELS: readonly LevelConfig[] = [
     map: level3Map,
     spawns: { left: { x: 64, y: 540 }, right: { x: 736, y: 540 } },
     portal: { x: 416, y: 60 },
-    parkourZone: null,
     ammoPickups: [
       { id: 1, x: 736, y: 150 },
       { id: 2, x: 384, y: 180 },

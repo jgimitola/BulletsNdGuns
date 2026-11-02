@@ -32,9 +32,12 @@ test('rects', () => {
   expect(portalRect(LEVELS[0]!)).toEqual({ x: 682, y: 30, width: 44, height: 60 });
 });
 
-test('only level 3 is last and has no parkour zone', () => {
+test('only level 3 is last', () => {
   expect([0, 1, 2].map(isLastLevel)).toEqual([false, false, true]);
-  expect(LEVELS[2]?.parkourZone).toBeNull();
+});
+
+test('no level carries a parkour zone: the full-size body crosses every corridor', () => {
+  for (const level of LEVELS) expect(level).not.toHaveProperty('parkourZone');
 });
 
 test('getLevel memoizes the grid and throws out of range', () => {

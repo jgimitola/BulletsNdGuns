@@ -1,5 +1,5 @@
-import type { Rect } from '../geometry.ts';
-import type { TileGrid } from './tile-grid.ts';
+import { overlaps, type Rect } from '../geometry.ts';
+import { tilesWithin, type TileGrid } from './tile-grid.ts';
 
 /** Which sides of a box were blocked by a solid tile or the world edge this step. */
 export interface Contacts {
@@ -44,7 +44,8 @@ interface AxisResult {
  * Sweeps one axis. `lo`/`size` describe the box on the moving axis and `crossLo`/`crossSize`
  * on the other; `solid(a, b)` takes the tile index along the moving axis, then across it.
  * Scanning every tile the leading edge crosses (rather than testing the end position) is what
- * stops fast fallers from tunnelling through thin platforms.
+ * stops fast fallers from tunnelling through thin platforms. `fromLeadingTile` also scans the
+ * tile the leading edge already sits in, so a box placed slightly inside it is pushed back out.
  */
 function sweepAxis(
   lo: number,
@@ -57,6 +58,7 @@ function sweepAxis(
   count: number,
   crossCount: number,
   solid: (a: number, b: number) => boolean,
+  fromLeadingTile: boolean,
 ): AxisResult {
   const b0 = Math.max(0, Math.floor((crossLo + EPS) / crossTile));
   const b1 = Math.min(crossCount - 1, Math.floor((crossLo + crossSize - EPS) / crossTile));
@@ -69,8 +71,11 @@ function sweepAxis(
   let hitNegative = false;
   let hitPositive = false;
 
+  // The plain scan starts past the tile holding the leading edge: a box in a legal position
+  // only touches it.
+  const skip = fromLeadingTile ? 0 : 1;
   if (delta > 0) {
-    const first = Math.floor((lo + size - EPS) / tile) + 1;
+    const first = Math.floor((lo + size - EPS) / tile) + skip;
     const last = Math.min(count - 1, Math.floor((lo + size + delta - EPS) / tile));
     for (let a = Math.max(first, 0); a <= last; a++) {
       if (blockedAt(a)) {
@@ -80,7 +85,7 @@ function sweepAxis(
       }
     }
   } else if (delta < 0) {
-    const first = Math.min(count, Math.floor((lo + EPS) / tile)) - 1;
+    const first = Math.min(count, Math.floor((lo + EPS) / tile) + 1 - skip) - 1;
     const last = Math.max(0, Math.floor((lo + delta + EPS) / tile));
     for (let a = first; a >= last; a--) {
       if (blockedAt(a)) {
@@ -115,6 +120,7 @@ function sweepX(box: Rect, dx: number, y: number, grid: TileGrid): AxisResult {
     grid.cols,
     grid.rows,
     (col, row) => grid.isSolid(col, row),
+    false,
   );
 }
 
@@ -130,6 +136,10 @@ function sweepY(box: Rect, dy: number, x: number, grid: TileGrid): AxisResult {
     grid.rows,
     grid.cols,
     (row, col) => grid.isSolid(col, row),
+    // Converted spawns sink up to a few px into the floor, and gravity always moves Y, so the
+    // first step lifts them out. X keeps the plain scan: undoing a floor overlap sideways
+    // would shove the box along the floor.
+    true,
   );
 }
 
@@ -261,4 +271,16 @@ export function moveBox(
       down: y.hitPositive,
     },
   };
+}
+
+/** True if `rect` strictly overlaps any solid tile. */
+export function touchesSolidTile(rect: Rect, grid: TileGrid): boolean {
+  return tilesWithin(grid, rect).some((tile) =>
+    overlaps(rect, {
+      x: tile.col * grid.tileWidth,
+      y: tile.row * grid.tileHeight,
+      width: grid.tileWidth,
+      height: grid.tileHeight,
+    }),
+  );
 }

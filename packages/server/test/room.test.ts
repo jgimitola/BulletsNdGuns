@@ -4,6 +4,7 @@ import {
   NEVER_SHOT_TICKS,
   STARTING_AMMO,
   getLevel,
+  hitboxCentreFromSprite,
   type InputFrame,
   type LevelStarted,
   type MatchEnded,
@@ -252,13 +253,19 @@ describe('Room', () => {
   test('starvation: last keys reused 6 ticks then neutral', () => {
     const { room } = startMatch();
     room.queueInput('a', frame(1, { right: true }));
+    const vxs: number[] = [];
     const xs: number[] = [xOf(room, 'a')];
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 14; i++) {
       room.tick();
+      vxs.push(room.worldForTest()!.players.find((p) => p.id === 'a')!.vx);
       xs.push(xOf(room, 'a'));
     }
-    for (let t = 1; t <= 7; t++) expect(xs[t]).toBeGreaterThan(xs[t - 1]!);
-    for (let t = 8; t <= 10; t++) expect(xs[t]).toBe(xs[7]);
+    // Ticks 1-7 hold right (the frame, then 6 reuses): tick 1 starts airborne at the spawn, so
+    // it gains 270 / 9 (air accel); then +45 per tick on the ground up to 270. From tick 8 the
+    // keys are neutral and the player brakes at 270 / 4 per tick to rest.
+    expect(vxs).toEqual([30, 75, 120, 165, 210, 255, 270, 202.5, 135, 67.5, 0, 0, 0, 0]);
+    for (let t = 1; t <= 10; t++) expect(xs[t]).toBeGreaterThan(xs[t - 1]!);
+    for (let t = 11; t <= 14; t++) expect(xs[t]).toBe(xs[10]);
     expect(room.ackSeqForTest('a')).toBe(1);
   });
 
@@ -292,10 +299,11 @@ describe('Room', () => {
     const world = room.worldForTest()!;
     const b = world.players.find((p) => p.id === 'b')!;
     // a stands just left of b, facing it: the bullet hits b before the tick-3 snapshot.
+    // x is the hitbox centre and bodies are 27.6 wide, so 30 apart leaves a's box just clear.
     room.__setWorldForTest({
       ...world,
       players: world.players.map((p) =>
-        p.id === 'a' ? { ...p, x: b.x - 20, y: b.y, facing: 'right' } : p,
+        p.id === 'a' ? { ...p, x: b.x - 30, y: b.y, facing: 'right' } : p,
       ),
     });
     room.queueInput('a', frame(1, { shootPressed: true }));
@@ -320,9 +328,10 @@ describe('Room', () => {
     room.markReady('a');
     room.markReady('b');
     room.tick();
-    // Where a settles with no input (see the shared world tests).
+    // Where a settles with no input: hitbox centre flush against the left bound (see the shared
+    // world tests).
     const spawnX = xOf(room, 'a');
-    expect(spawnX).toBeCloseTo(26.45, 6);
+    expect(spawnX).toBeCloseTo(13.8, 6);
     expect(room.ackSeqForTest('a')).toBe(0);
     // Still stale afterwards.
     room.queueInput('a', frame(1, { right: true }));
@@ -385,7 +394,7 @@ describe('Room', () => {
       expect(started).toHaveLength(2);
       expect((started[1]!.args[0] as { levelIndex: number }).levelIndex).toBe(1);
     }
-    const spawn = getLevel(1).spawns.left;
+    const spawn = hitboxCentreFromSprite(getLevel(1).spawns.left, 'right');
     expect(room.worldForTest()!.players[0]!.y).toBeCloseTo(spawn.y, 0);
     room.tick();
     expect(transport.of('a', 'levelStarted')).toHaveLength(2);

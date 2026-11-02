@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { RUN_SPEED, TICK_MS, TICK_SECONDS } from '../src/constants.ts';
+import { TICK_MS, TICK_SECONDS } from '../src/constants.ts';
+import { MOVEMENT } from '../src/simulation/movement-tuning.ts';
 
 describe('constants', () => {
   it('derives the tick duration from 60 Hz', () => {
@@ -7,6 +8,6 @@ describe('constants', () => {
   });
 
   it('moves 4.5 px per tick at run speed', () => {
-    expect(RUN_SPEED * TICK_SECONDS).toBe(4.5);
+    expect(MOVEMENT.runSpeed * TICK_SECONDS).toBe(4.5);
   });
 });

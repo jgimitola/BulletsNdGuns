@@ -4,42 +4,44 @@ import {
   GRAVITY_Y,
   JUMP_VELOCITY,
   NEVER_SHOT_TICKS,
-  PLAYER_FRAME_HEIGHT,
-  PLAYER_FRAME_WIDTH,
-  PLAYER_SCALE,
-  RUN_SPEED,
   SHOT_COOLDOWN_MS,
   STARTING_AMMO,
   TICK_RATE,
   TICK_SECONDS,
-  WORLD_HEIGHT,
-  WORLD_WIDTH,
 } from '../constants.ts';
-import type { Rect } from '../geometry.ts';
-import type { Level, ParkourZone, Side } from '../levels/level-registry.ts';
-import { clampToBounds, integrate, type ArcadeBody } from '../physics/arcade-body.ts';
-import { collideWithTiles } from '../physics/collide.ts';
+import type { Vec2 } from '../geometry.ts';
+import type { Level, Side } from '../levels/level-registry.ts';
+import { moveBox } from '../physics/tile-collision.ts';
 import type { InputFrame } from '../protocol/input.ts';
+import { nextHorizontalVelocity, type Direction } from './horizontal-velocity.ts';
+import { MOVEMENT } from './movement-tuning.ts';
+import { bodyBox, hitboxCentreFromSprite, spriteCentre, type Facing } from './player-body.ts';
 
+export type { Facing } from './player-body.ts';
 export type PlayerId = string;
-export type Facing = 'left' | 'right';
 export type AnimationKey = 'idle' | 'run' | 'jump' | 'fall' | 'shoot';
 
+/** Everything `stepPlayer` reads lives here, so snapshots carry it and reconciliation replays it. */
 export interface PlayerState {
   id: PlayerId;
   side: Side;
-  /** Sprite centre (origin 0.5), as in the original game. */
+  /** Hitbox centre. The sprite is drawn offset from it (see `spriteCentre`). */
   x: number;
   y: number;
+  /** Carries momentum between ticks. */
   vx: number;
   vy: number;
   facing: Facing;
-  /** True while the narrow parkour body is in use. */
-  narrow: boolean;
   onFloor: boolean;
   ammo: number;
   score: number;
   ticksSinceShot: number;
+  /** Ticks left on a buffered jump press, 0 when none. */
+  jumpBufferTicks: number;
+  /** Ticks left of coyote time, 0 when none. */
+  coyoteTicks: number;
+  /** Ticks left of the shoot pose. */
+  shotPoseTicks: number;
   anim: AnimationKey;
 }
 
@@ -58,72 +60,63 @@ export interface PlayerStepResult {
   jumped: boolean;
 }
 
-interface BodyShape {
-  /** Body size in source (unscaled) pixels. */
-  width: number;
-  height: number;
-  /** Body offset in source pixels from the frame's top-left corner, per facing. */
-  offsetX: Record<Facing, number>;
-  offsetY: number;
+/** Players spawn facing the centre of the level. */
+function spawnFacing(side: Side): Facing {
+  return side === 'left' ? 'right' : 'left';
 }
 
-// Values from the original game's setSize/setOffset calls (see the geometry table in the plan).
-const NORMAL_SHAPE: BodyShape = {
-  width: 12,
-  height: 15,
-  offsetX: { right: 2, left: 12 },
-  offsetY: 8,
-};
-const NARROW_SHAPE: BodyShape = {
-  width: 3,
-  height: 15,
-  offsetX: { right: 6, left: 18 },
-  offsetY: 8,
-};
+/**
+ * Hitbox centre of a side's spawn. Converted with the spawn facing, whatever the player faces
+ * now, so every spawn puts the hitbox in the same place and the first one draws the sprite on
+ * the authored point.
+ */
+function spawnPoint(level: Level, side: Side): Vec2 {
+  return hitboxCentreFromSprite(level.spawns[side], spawnFacing(side));
+}
 
-// Origin 0.5: the sprite position is the frame centre.
-const DISPLAY_ORIGIN_X = PLAYER_FRAME_WIDTH / 2;
-const DISPLAY_ORIGIN_Y = PLAYER_FRAME_HEIGHT / 2;
-
+/** A fresh player at its side's spawn, at rest, with full starting ammo. */
 export function createPlayer(id: PlayerId, side: Side, level: Level, score = 0): PlayerState {
-  const spawn = level.spawns[side];
+  const { x, y } = spawnPoint(level, side);
   return {
     id,
     side,
-    x: spawn.x,
-    y: spawn.y,
+    x,
+    y,
     vx: 0,
     vy: 0,
-    facing: side === 'left' ? 'right' : 'left',
-    narrow: false,
+    facing: spawnFacing(side),
     onFloor: false,
     ammo: STARTING_AMMO,
     score,
     ticksSinceShot: NEVER_SHOT_TICKS,
+    jumpBufferTicks: 0,
+    coyoteTicks: 0,
+    shotPoseTicks: 0,
     anim: 'idle',
   };
 }
 
-/** The arcade body box for a sprite at (x, y), following Phaser 3.20's Body.preUpdate. */
-export function bodyBox(p: Pick<PlayerState, 'x' | 'y' | 'facing' | 'narrow'>): Rect {
-  const shape = p.narrow ? NARROW_SHAPE : NORMAL_SHAPE;
+/**
+ * Puts a shot player back at its spawn, at rest. Momentum and pending jump timers are cleared
+ * so it neither slides off nor jumps on arrival; floor contact is unknown until it next moves.
+ * Facing, ammo, score and the shot cooldown carry over, as in the original.
+ */
+export function respawn(p: PlayerState, level: Level): PlayerState {
+  const { x, y } = spawnPoint(level, p.side);
   return {
-    x: p.x + PLAYER_SCALE * (shape.offsetX[p.facing] - DISPLAY_ORIGIN_X),
-    y: p.y + PLAYER_SCALE * (shape.offsetY - DISPLAY_ORIGIN_Y),
-    width: PLAYER_SCALE * shape.width,
-    height: PLAYER_SCALE * shape.height,
+    ...p,
+    x,
+    y,
+    vx: 0,
+    vy: 0,
+    onFloor: false,
+    jumpBufferTicks: 0,
+    coyoteTicks: 0,
+    shotPoseTicks: 0,
   };
 }
 
-/**
- * Inside the parkour zone the body is narrow. Outside it, the original only restored the normal
- * body while facing right, so facing left keeps whatever the player had.
- */
-export function nextNarrow(p: PlayerState, zone: ParkourZone | null): boolean {
-  if (zone && p.x > zone.minX && p.x < zone.maxX && p.y < zone.maxY) return true;
-  return p.facing === 'right' ? false : p.narrow;
-}
-
+/** Animation for a player about to apply `input`; a shot shows only when it can fire. */
 export function animationFor(p: PlayerState, input: InputFrame): AnimationKey {
   if (input.shootPressed && p.ammo > 0) return 'shoot';
   if (p.onFloor) return p.vx === 0 ? 'idle' : 'run';
@@ -143,74 +136,110 @@ function zeroed(v: number): number {
   return v === 0 ? 0 : v;
 }
 
+function countDown(ticks: number): number {
+  return Math.max(0, ticks - 1);
+}
+
+function tickTimers(p: PlayerState): PlayerState {
+  return {
+    ...p,
+    ticksSinceShot: p.ticksSinceShot + 1,
+    shotPoseTicks: countDown(p.shotPoseTicks),
+    coyoteTicks: countDown(p.coyoteTicks),
+    jumpBufferTicks: countDown(p.jumpBufferTicks),
+  };
+}
+
+/** Left wins when both are held, as in the original. */
+function directionOf(input: InputFrame): Direction {
+  if (input.left) return -1;
+  if (input.right) return 1;
+  return 0;
+}
+
+/** Facing follows the held key at once, before momentum catches up, so a turn reads instantly. */
+function facingFor(facing: Facing, direction: Direction): Facing {
+  if (direction < 0) return 'left';
+  if (direction > 0) return 'right';
+  return facing;
+}
+
 /**
- * One 60 Hz tick for one player. Pure: returns a new state. Phaser ran the arcade physics step and
- * then the scene update each frame; a tick here is one scene update (steps 1-6) followed by the
- * physics step that consumed its velocities on the next frame (step 7). Do not reorder.
+ * Fires from the gun (the sprite centre plus the muzzle drop) when the press lands with ammo
+ * and the cooldown over. A refused press does nothing, not even the pose.
  */
+function shoot(
+  p: PlayerState,
+  input: InputFrame,
+): { player: PlayerState; bullet: BulletState | null } {
+  if (!input.shootPressed || p.ammo <= 0 || !cooledDown(p.ticksSinceShot)) {
+    return { player: p, bullet: null };
+  }
+  const gun = spriteCentre(p, p.facing);
+  return {
+    player: {
+      ...p,
+      ammo: p.ammo - 1,
+      ticksSinceShot: 0,
+      shotPoseTicks: MOVEMENT.shotPoseTicks,
+    },
+    bullet: {
+      id: `${p.id}:${input.seq}`,
+      ownerId: p.id,
+      x: gun.x,
+      y: gun.y + BULLET_SPAWN_OFFSET_Y,
+      vx: p.facing === 'right' ? BULLET_SPEED : -BULLET_SPEED,
+    },
+  };
+}
+
+/**
+ * Sweeps the hitbox through the level with this tick's velocities. Position moves by the box's
+ * displacement rather than being rebuilt from the box, so a blocked axis keeps its exact value.
+ */
+function move(p: PlayerState, level: Level): PlayerState {
+  const box = bodyBox(p);
+  const r = moveBox(box, p.vx, p.vy, TICK_SECONDS, level.grid, MOVEMENT);
+  return {
+    ...p,
+    x: p.x + (r.box.x - box.x),
+    y: p.y + (r.box.y - box.y),
+    vx: zeroed(r.vx),
+    vy: zeroed(r.vy),
+    onFloor: r.contacts.down,
+  };
+}
+
+/** One 60 Hz tick for one player. Pure: returns a new state. */
 export function stepPlayer(player: PlayerState, input: InputFrame, level: Level): PlayerStepResult {
-  const next: PlayerState = { ...player };
+  // 1. Timers count down before anything below can set one, so a fresh value lasts in full.
+  let next = tickTimers(player);
 
-  // 1. Shot cooldown clock.
-  next.ticksSinceShot = player.ticksSinceShot + 1;
-
-  // 2. Body shape for the parkour zone.
-  next.narrow = nextNarrow(player, level.parkourZone);
-
-  // 3. Animation, from the state before this tick's input is applied.
+  // 2. Animation, from the state before this tick's input is applied.
   next.anim = animationFor(player, input);
 
-  // 4. Jump.
-  let jumped = false;
-  if (input.jumpPressed && player.onFloor) {
-    next.vy = JUMP_VELOCITY;
-    jumped = true;
-  }
+  // 3. Facing, before the shot so a bullet fired while turning leaves in the new direction.
+  const direction = directionOf(input);
+  next.facing = facingFor(player.facing, direction);
 
-  // 5. Shoot.
-  let bullet: BulletState | null = null;
-  if (input.shootPressed && next.ammo > 0 && cooledDown(next.ticksSinceShot)) {
-    bullet = {
-      id: `${player.id}:${input.seq}`,
-      ownerId: player.id,
-      x: player.x,
-      y: player.y + BULLET_SPAWN_OFFSET_Y,
-      vx: player.facing === 'right' ? BULLET_SPEED : -BULLET_SPEED,
-    };
-    next.ammo -= 1;
-    next.ticksSinceShot = 0;
-  }
+  // 4. Shoot, before the move: the bullet leaves from where the player was last drawn.
+  const shot = shoot(next, input);
+  next = shot.player;
 
-  // 6. Horizontal movement.
-  if (input.left) {
-    next.vx = -RUN_SPEED;
-    next.facing = 'left';
-  } else if (input.right) {
-    next.vx = RUN_SPEED;
-    next.facing = 'right';
-  } else {
-    next.vx = 0;
-  }
+  // 5. Horizontal momentum. Ground or air rates come from last tick's contact; this tick's is
+  //    only known after the move.
+  next.vx = nextHorizontalVelocity(player.vx, direction, player.onFloor);
 
-  // 7. Physics, with the body as it was positioned before this tick's facing change.
-  const box = bodyBox({ x: player.x, y: player.y, facing: player.facing, narrow: next.narrow });
-  const body: ArcadeBody = {
-    ...box,
-    vx: next.vx,
-    vy: next.vy,
-    prevX: box.x,
-    prevY: box.y,
-    blocked: { up: false, down: false, left: false, right: false },
-  };
-  integrate(body, GRAVITY_Y, TICK_SECONDS);
-  clampToBounds(body, WORLD_WIDTH, WORLD_HEIGHT);
-  collideWithTiles(body, level.grid);
+  // 6. Jump, from the floor only, judged by last tick's contact for the same reason.
+  const jumped = input.jumpPressed && player.onFloor;
+  if (jumped) next.vy = JUMP_VELOCITY;
 
-  next.x = player.x + (body.x - box.x);
-  next.y = player.y + (body.y - box.y);
-  next.vx = zeroed(body.vx);
-  next.vy = zeroed(body.vy);
-  next.onFloor = body.blocked.down;
+  // 7. Gravity after the jump, so the jump tick already includes one tick of it: that is what
+  //    gives the original's 87.5 px apex.
+  next.vy += GRAVITY_Y * TICK_SECONDS;
 
-  return { player: next, bullet, jumped };
+  // 8-9. Move and collide with this tick's velocities; the down contact becomes onFloor.
+  next = move(next, level);
+
+  return { player: next, bullet: shot.bullet, jumped };
 }
