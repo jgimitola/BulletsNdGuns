@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { parseInput, toSnapshot } from '../src/protocol/messages.ts';
 import { createWorld } from '../src/simulation/world.ts';
 
-const ok = { level: 0, left: false, right: false, jump: false, shoot: false };
+const ok = { level: 0, left: false, right: false, jumpPressed: false, shootPressed: false };
 
 test.each([
   null,
@@ -20,8 +20,9 @@ test.each([
   { seq: 2 ** 53, ...ok },
   { seq: '1', ...ok },
   { seq: 1, ...ok, left: 'yes' },
-  { seq: 1, ...ok, jump: 1 },
-  { seq: 1, left: false, right: false, jump: false, shoot: false },
+  { seq: 1, ...ok, jumpPressed: 1 },
+  { seq: 1, level: 0, left: false, right: false, jump: false, shoot: false },
+  { seq: 1, left: false, right: false, jumpPressed: false, shootPressed: false },
   { seq: 1, ...ok, level: -1 },
   { seq: 1, ...ok, level: 1.5 },
   { seq: 1, ...ok, level: NaN },
@@ -31,9 +32,24 @@ test.each([
 ])('parseInput rejects %j', (raw) => expect(parseInput(raw)).toBeNull());
 
 test('parseInput accepts and strips extras', () => {
-  const raw = { seq: 3, level: 2, left: true, right: false, jump: false, shoot: true, x: 999 };
+  const raw = {
+    seq: 3,
+    level: 2,
+    left: true,
+    right: false,
+    jumpPressed: false,
+    shootPressed: true,
+    x: 999,
+  };
   const out = parseInput(raw);
-  expect(out).toEqual({ seq: 3, level: 2, left: true, right: false, jump: false, shoot: true });
+  expect(out).toEqual({
+    seq: 3,
+    level: 2,
+    left: true,
+    right: false,
+    jumpPressed: false,
+    shootPressed: true,
+  });
   expect(out).not.toBe(raw);
   expect(Object.keys(out!)).toHaveLength(6);
 });

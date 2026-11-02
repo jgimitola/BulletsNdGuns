@@ -73,8 +73,8 @@ const frame = (seq: number, keys: Partial<InputFrame> = {}): InputFrame => ({
   level: 0,
   left: false,
   right: false,
-  jump: false,
-  shoot: false,
+  jumpPressed: false,
+  shootPressed: false,
   ...keys,
 });
 
@@ -264,7 +264,7 @@ describe('Room', () => {
 
   test('starvation reuse is movement-only: one frame with shoot fires exactly one bullet', () => {
     const { room } = startMatch();
-    room.queueInput('a', frame(1, { right: true, shoot: true }));
+    room.queueInput('a', frame(1, { right: true, shootPressed: true }));
     const xs: number[] = [xOf(room, 'a')];
     room.tick();
     xs.push(xOf(room, 'a'));
@@ -298,7 +298,7 @@ describe('Room', () => {
         p.id === 'a' ? { ...p, x: b.x - 20, y: b.y, facing: 'right' } : p,
       ),
     });
-    room.queueInput('a', frame(1, { shoot: true }));
+    room.queueInput('a', frame(1, { shootPressed: true }));
     ticks(room, 2);
     for (const id of ['a', 'b']) {
       const [first] = snapshots(transport, id);

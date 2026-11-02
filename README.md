@@ -44,7 +44,7 @@ npm workspaces monorepo:
 
 ### From key press to snapshot
 
-1. The client samples the keyboard each tick and sends `{ seq, level, left, right, jump, shoot }` (`level` lets the server drop frames still in flight when the level changes). It also applies the input immediately to its own copy of the simulation (prediction).
+1. The client samples the keyboard each tick and sends `{ seq, level, left, right, jumpPressed, shootPressed }` (`level` lets the server drop frames still in flight when the level changes). It also applies the input immediately to its own copy of the simulation (prediction).
 2. The server queues inputs per player and applies one per 60 Hz tick, running the same shared `step` function. Movement, shooting, hits, pickups, portals and the winner are decided only here.
 3. The server broadcasts snapshots about 20 to 30 times per second, including each player's last processed input `seq`.
 4. The local client resets to the server state and replays unacknowledged inputs (reconciliation). Remote players and bullets are drawn about 100 ms in the past, interpolated between snapshots.

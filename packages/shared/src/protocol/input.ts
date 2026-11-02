@@ -5,8 +5,9 @@ export interface InputFrame {
   level: number;
   left: boolean;
   right: boolean;
-  jump: boolean;
-  shoot: boolean;
+  /** Key went down since the previous frame; holding it sends nothing further. */
+  jumpPressed: boolean;
+  shootPressed: boolean;
 }
 
 /** The keys of a frame, without its numbering. */
@@ -15,6 +16,6 @@ export type InputKeys = Omit<InputFrame, 'seq' | 'level'>;
 export const NEUTRAL_INPUT: Readonly<InputKeys> = Object.freeze({
   left: false,
   right: false,
-  jump: false,
-  shoot: false,
+  jumpPressed: false,
+  shootPressed: false,
 });

@@ -61,7 +61,7 @@ test('bullet from settled left player hits settled right player on 75th tick', (
   const events: { tick: number; e: WorldEvent }[] = [];
   for (let k = 1; k <= 80; k++) {
     const inputs = new Map<PlayerId, InputFrame>();
-    if (k === 1) inputs.set('a', { ...NEUTRAL_INPUT, seq: 1, level: 0, shoot: true });
+    if (k === 1) inputs.set('a', { ...NEUTRAL_INPUT, seq: 1, level: 0, shootPressed: true });
     const r = stepWorld(w, inputs);
     w = r.world;
     for (const e of r.events) if (e.type === 'hit') events.push({ tick: k, e });
@@ -78,7 +78,7 @@ test('shot and jumped events are emitted', () => {
   const w = settled();
   const r = stepWorld(
     w,
-    new Map([['a', { ...NEUTRAL_INPUT, seq: 1, level: 0, shoot: true, jump: true }]]),
+    new Map([['a', { ...NEUTRAL_INPUT, seq: 1, level: 0, shootPressed: true, jumpPressed: true }]]),
   );
   expect(r.events.map((e) => e.type)).toEqual(['jumped', 'shot']);
   expect(r.world.bullets).toHaveLength(1);

@@ -90,7 +90,9 @@ describe('LocalPlayerPredictor', () => {
 
   it('replayed shots are not reported again', () => {
     const { predictor, first } = setup();
-    const results = [1, 2, 3].map(() => predictor.applyInput(keys({ shoot: true, jump: true })));
+    const results = [1, 2, 3].map(() =>
+      predictor.applyInput(keys({ shootPressed: true, jumpPressed: true })),
+    );
     expect(results.filter((r) => r.bullet !== null)).toHaveLength(1);
     const ret = predictor.reconcile(snap(first, 0));
     expect(ret).toBeUndefined();

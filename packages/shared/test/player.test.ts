@@ -96,7 +96,7 @@ test('runs 4.5 px per tick', () => {
 
 test('jump apex is 87.5 px above floor', () => {
   const start = settle(createPlayer('a', 'left', L1));
-  const results = [stepPlayer(start, input({ jump: true }), L1)];
+  const results = [stepPlayer(start, input({ jumpPressed: true }), L1)];
   while (!results.at(-1)!.player.onFloor) {
     expect(results.length).toBeLessThan(200);
     results.push(stepPlayer(results.at(-1)!.player, input(), L1));
@@ -114,7 +114,7 @@ test('jump apex is 87.5 px above floor', () => {
 
 test('holding jump re-jumps on landing', () => {
   const start = settle(createPlayer('a', 'left', L1));
-  const results = run(start, 120, { jump: true });
+  const results = run(start, 120, { jumpPressed: true });
   expect(results[0]!.jumped).toBe(true);
   const landed = results.findIndex((r, i) => i > 0 && r.player.onFloor);
   expect(landed).toBeGreaterThan(0);
@@ -125,7 +125,7 @@ test('holding jump re-jumps on landing', () => {
 test('cooldown: shots on tick 1 and tick 62 only, ammo 2 → 0', () => {
   const start = settle(createPlayer('a', 'left', L1));
   const firstSeq = seq + 1;
-  const results = run(start, 70, { shoot: true });
+  const results = run(start, 70, { shootPressed: true });
   const shotTicks = results.flatMap((r, i) => (r.bullet ? [i + 1] : []));
   expect(shotTicks).toEqual([1, 62]);
   expect(results[0]!.bullet).toEqual({
@@ -145,7 +145,7 @@ test('cooldown: shots on tick 1 and tick 62 only, ammo 2 → 0', () => {
 
 test('no bullet with zero ammo but anim is not shoot', () => {
   const start = { ...settle(createPlayer('a', 'left', L1)), ammo: 0 };
-  const r = stepPlayer(start, input({ shoot: true }), L1);
+  const r = stepPlayer(start, input({ shootPressed: true }), L1);
   expect(r.bullet).toBeNull();
   expect(r.player.anim).toBe('idle');
   expect(r.player.ammo).toBe(0);
@@ -153,7 +153,7 @@ test('no bullet with zero ammo but anim is not shoot', () => {
 
 test('facing left fires negative velocity', () => {
   const start = settle(createPlayer('b', 'right', L1));
-  const r = stepPlayer(start, input({ shoot: true }), L1);
+  const r = stepPlayer(start, input({ shootPressed: true }), L1);
   expect(r.bullet).not.toBeNull();
   expect(r.bullet!.vx).toBe(-600);
   expect(r.bullet!.ownerId).toBe('b');
@@ -162,7 +162,7 @@ test('facing left fires negative velocity', () => {
 
 test('bullet uses facing from before this tick turns the player', () => {
   const start = settle(createPlayer('a', 'left', L1));
-  const r = stepPlayer(start, input({ shoot: true, left: true }), L1);
+  const r = stepPlayer(start, input({ shootPressed: true, left: true }), L1);
   expect(r.bullet!.vx).toBe(600);
   expect(r.player.facing).toBe('left');
 });
@@ -207,7 +207,7 @@ test('stepPlayer applies narrow before moving', () => {
 test('stepPlayer is pure and deterministic', () => {
   const p = createPlayer('a', 'left', L1);
   const snapshot = { ...p }; // PlayerState is flat, so a spread is a full copy
-  const frame = input({ right: true, jump: true, shoot: true });
+  const frame = input({ right: true, jumpPressed: true, shootPressed: true });
   const a = stepPlayer(p, frame, L1);
   const b = stepPlayer(p, frame, L1);
   expect(p).toEqual(snapshot);

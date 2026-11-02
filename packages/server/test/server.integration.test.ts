@@ -203,8 +203,8 @@ describe('server integration', () => {
       level: 0,
       left: false,
       right: false,
-      jump: false,
-      shoot: false,
+      jumpPressed: false,
+      shootPressed: false,
       ...over,
     });
 
@@ -213,7 +213,7 @@ describe('server integration', () => {
         b.emit('input', mk(++seqB, { left: state.phase === 'walk' }));
         const shoot = state.shootPending;
         state.shootPending = false;
-        a.emit('input', mk(++seqA, { shoot }));
+        a.emit('input', mk(++seqA, { shootPressed: shoot }));
       }, 16),
     );
 
@@ -237,7 +237,14 @@ describe('server integration', () => {
 
     const kicked = once<string>(a, 'disconnect');
     for (let seq = 1; seq <= 400; seq++) {
-      a.emit('input', { seq, level: 0, left: false, right: false, jump: false, shoot: false });
+      a.emit('input', {
+        seq,
+        level: 0,
+        left: false,
+        right: false,
+        jumpPressed: false,
+        shootPressed: false,
+      });
     }
     expect(await kicked).toBe('io server disconnect');
 

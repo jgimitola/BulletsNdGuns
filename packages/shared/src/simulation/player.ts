@@ -125,7 +125,7 @@ export function nextNarrow(p: PlayerState, zone: ParkourZone | null): boolean {
 }
 
 export function animationFor(p: PlayerState, input: InputFrame): AnimationKey {
-  if (input.shoot && p.ammo > 0) return 'shoot';
+  if (input.shootPressed && p.ammo > 0) return 'shoot';
   if (p.onFloor) return p.vx === 0 ? 'idle' : 'run';
   return p.vy > 0 ? 'fall' : 'jump';
 }
@@ -162,14 +162,14 @@ export function stepPlayer(player: PlayerState, input: InputFrame, level: Level)
 
   // 4. Jump.
   let jumped = false;
-  if (input.jump && player.onFloor) {
+  if (input.jumpPressed && player.onFloor) {
     next.vy = JUMP_VELOCITY;
     jumped = true;
   }
 
   // 5. Shoot.
   let bullet: BulletState | null = null;
-  if (input.shoot && next.ammo > 0 && cooledDown(next.ticksSinceShot)) {
+  if (input.shootPressed && next.ammo > 0 && cooledDown(next.ticksSinceShot)) {
     bullet = {
       id: `${player.id}:${input.seq}`,
       ownerId: player.id,
