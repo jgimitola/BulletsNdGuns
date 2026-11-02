@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { Rect } from '../src/geometry.ts';
 import { buildTileGrid, type TileGrid } from '../src/physics/tile-grid.ts';
-import { moveBox, NO_ASSISTS, type MoveResult } from '../src/physics/tile-collision.ts';
+import { moveBox, NO_ASSISTS, type CornerAssists, type MoveResult } from '../src/physics/tile-collision.ts';
 
 /** `#` is a solid tile (gid 1), anything else is empty. Tiles are 32 x 30 like the levels. */
 function gridFromRows(rows: string[]): TileGrid {
@@ -150,5 +150,78 @@ describe('moveBox', () => {
     const box: Rect = { x: 10, y: 10, width: 20, height: 20 };
     step(box, 100, 100, grid);
     expect(box).toEqual({ x: 10, y: 10, width: 20, height: 20 });
+  });
+});
+
+describe('corner assists', () => {
+  const ASSISTS: CornerAssists = { headNudgeMaxPx: 12, ledgeCatchMaxPx: 8 };
+  const W = 27.6;
+  const H = 34.5;
+  const gapLeft = 4 * 32;
+
+  describe('head nudge', () => {
+    // Ceiling row 0 with a single one-tile gap at column 4.
+    const ceiling = '####.####';
+    const rise = (grid: TileGrid, offLeft: number): MoveResult =>
+      moveBox({ x: gapLeft - offLeft, y: 32, width: W, height: H }, 0, -400, DT, grid, ASSISTS);
+
+    test('slides through a one-tile gap', () => {
+      const r = rise(gridFromRows([ceiling, '.........', '.........', '.........']), 10);
+      expect(r.box.y).toBeLessThan(30);
+      expect(r.box.x).toBeCloseTo(gapLeft, 6);
+      expect(r.vy).toBeLessThan(0);
+      expect(r.contacts.up).toBe(false);
+    });
+
+    test('beyond the limit stops', () => {
+      const r = rise(gridFromRows([ceiling, '.........', '.........', '.........']), 14);
+      expect(r.contacts.up).toBe(true);
+      expect(r.vy).toBe(0);
+      expect(r.box.x).toBe(gapLeft - 14);
+    });
+
+    test('never moves into a solid tile', () => {
+      // The nudged box would overlap the tile at column 4, row 2.
+      const r = rise(gridFromRows([ceiling, '.........', '....#....', '.........']), 10);
+      expect(r.contacts.up).toBe(true);
+      expect(r.vy).toBe(0);
+      expect(r.box.x).toBe(gapLeft - 10);
+    });
+  });
+
+  describe('ledge catch', () => {
+    // Ledge top is y = 90. Feet sit `above` px below it.
+    const ledgeTop = 90;
+    const grid = gridFromRows(['..........', '..........', '..........', '.....#####', '##########']);
+    const walk = (above: number, vy: number, g: TileGrid = grid, assists = ASSISTS): MoveResult =>
+      moveBox({ x: 130, y: ledgeTop + above - H, width: W, height: H }, 270, vy, DT, g, assists);
+
+    test('steps onto a ledge 6 px above the feet', () => {
+      const r = walk(6, 100);
+      expect(r.box.y + r.box.height).toBe(ledgeTop);
+      expect(r.contacts.down).toBe(true);
+      expect(r.contacts.right).toBe(false);
+      expect(r.vx).toBe(270);
+      expect(r.box.x).toBeCloseTo(130 + 270 * DT, 9);
+    });
+
+    test('a ledge 10 px above the feet is a wall', () => {
+      const r = walk(10, 100);
+      expect(r.contacts.right).toBe(true);
+      expect(r.vx).toBe(0);
+    });
+
+    test('no catch while rising', () => {
+      expect(walk(6, -200).contacts.right).toBe(true);
+    });
+
+    test('no catch under a ceiling', () => {
+      const low = gridFromRows(['..........', '....#.....', '..........', '.....#####', '##########']);
+      expect(walk(6, 100, low).contacts.right).toBe(true);
+    });
+
+    test('NO_ASSISTS keeps plain behaviour', () => {
+      expect(walk(6, 100, grid, NO_ASSISTS).contacts.right).toBe(true);
+    });
   });
 });
