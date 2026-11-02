@@ -310,7 +310,7 @@ function walkedOffLedge(): PlayerState {
 function jumpedAfterLedge(k: number, extraPressAt?: number): boolean[] {
   let p = walkedOffLedge();
   const jumps: boolean[] = [];
-  for (let i = 1; i <= k + 1; i++) {
+  for (let i = 1; i <= Math.max(k, extraPressAt ?? 0) + 1; i++) {
     const press = i === k || i === extraPressAt;
     const r = stepPlayer(p, input({ jumpPressed: press }), L1);
     jumps.push(r.jumped);
@@ -329,6 +329,7 @@ test('coyote: jump N ticks after walking off a ledge jumps; N+1 does not', () =>
 test('coyote is spent by the jump', () => {
   // Second press lands inside the original window but finds it spent.
   const jumps = jumpedAfterLedge(2, 4);
+  expect(jumps).toHaveLength(5);
   expect(jumps.filter(Boolean)).toHaveLength(1);
   expect(jumps[1]).toBe(true);
 });
@@ -340,7 +341,14 @@ test('a jump off the floor does not start coyote time', () => {
 });
 
 test('landing clears coyote time', () => {
-  const landed = run({ ...createPlayer('a', 'left', L1), x: 300, y: 400 }, 120, {}).at(-1)!.player;
+  // Hand-set a window that would still be open on landing, a couple of ticks above the floor.
+  const falling: PlayerState = {
+    ...createPlayer('a', 'left', L1),
+    x: 300,
+    y: FLOOR_Y - 2,
+    coyoteTicks: MOVEMENT.coyoteTicks,
+  };
+  const landed = run(falling, 10, {}).find((r) => r.player.onFloor)!.player;
   expect(landed.coyoteTicks).toBe(0);
 });
 
