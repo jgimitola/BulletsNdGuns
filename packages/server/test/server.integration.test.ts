@@ -257,6 +257,83 @@ describe('levels API', () => {
   });
 });
 
+/** A signed-in client plus its cookie, for the levels API. */
+async function signedIn(nickname: string): Promise<{ client: Client; cookie: string }> {
+  const cookie = await register(nickname);
+  return { client: await connected(newClient(cookie)), cookie };
+}
+
+async function createLevel(cookie: string, data: LevelData = levelData): Promise<string> {
+  const res = await api('POST', '/', cookie, { name: 'Torre', data });
+  if (res.status !== 201) throw new Error(`create level: ${res.status}`);
+  return levelOf(res.json).id;
+}
+
+/** Data that differs from the classics, to tell which copy a room plays. */
+const otherData: LevelData = { ...levelData, coins: [] };
+
+describe('rooms with playlists', () => {
+  test('without level ids, a room plays the three classics', async () => {
+    const { client } = await signedIn('Ana');
+    const created = await client.emitWithAck('createRoom', { name: 'Sala' });
+    if (!created.ok) throw new Error(created.error);
+    expect(created.lobby.levels).toEqual(['Classic 1', 'Classic 2', 'Classic 3']);
+    expect((await listRooms())[0]?.levels).toEqual(['Classic 1', 'Classic 2', 'Classic 3']);
+  });
+
+  test("a room plays the creator's own draft", async () => {
+    const ana = await signedIn('Ana');
+    const id = await createLevel(ana.cookie, otherData);
+    const b = await guest('Beto');
+    const created = await ana.client.emitWithAck('createRoom', { name: 'Sala', levelIds: [id] });
+    if (!created.ok) throw new Error(created.error);
+    expect(created.lobby.levels).toEqual(['Torre']);
+    await b.emitWithAck('joinRoom', { roomId: created.lobby.id });
+    const started = once<LevelStarted>(b, 'levelStarted');
+    ana.client.emit('ready');
+    b.emit('ready');
+    expect((await started).level).toEqual(otherData);
+  });
+
+  test("someone else's draft is unavailable, and no room is made", async () => {
+    const ana = await signedIn('Ana');
+    const id = await createLevel(ana.cookie);
+    const beto = await signedIn('Beto');
+    expect(await beto.client.emitWithAck('createRoom', { name: 'Sala', levelIds: [id] })).toEqual({
+      ok: false,
+      error: 'levelUnavailable',
+    });
+    expect(await listRooms()).toEqual([]);
+    expect((await beto.client.emitWithAck('createRoom', { name: 'Sala' })).ok).toBe(true);
+  });
+
+  test('a level deleted after it was listed is unavailable', async () => {
+    const ana = await signedIn('Ana');
+    const id = await createLevel(ana.cookie);
+    await api('POST', `/${id}/publish`, ana.cookie);
+    expect(((await api('GET', '/')).json as LevelPage).levels.map((l) => l.id)).toContain(id);
+    await api('DELETE', `/${id}`, ana.cookie);
+    expect(
+      await ana.client.emitWithAck('createRoom', { name: 'Sala', levelIds: ['classic-1', id] }),
+    ).toEqual({ ok: false, error: 'levelUnavailable' });
+    expect(await listRooms()).toEqual([]);
+  });
+
+  test('editing a level after the room was made does not change that room', async () => {
+    const ana = await signedIn('Ana');
+    const id = await createLevel(ana.cookie, otherData);
+    const created = await ana.client.emitWithAck('createRoom', { name: 'Sala', levelIds: [id] });
+    if (!created.ok) throw new Error(created.error);
+    await api('PUT', `/${id}`, ana.cookie, { name: 'Torre', data: levelData });
+    const b = await guest('Beto');
+    await b.emitWithAck('joinRoom', { roomId: created.lobby.id });
+    const started = once<LevelStarted>(b, 'levelStarted');
+    ana.client.emit('ready');
+    b.emit('ready');
+    expect((await started).level).toEqual(otherData);
+  });
+});
+
 describe('nicknames and permissions', () => {
   test('a guest cannot create a room', async () => {
     const g = await guest('Beto');
@@ -363,12 +440,19 @@ describe('server integration', () => {
         id: expect.any(String),
         name: 'Sala',
         players: [{ id: a.id, nickname: 'Ana', ready: false }],
+        levels: ['Classic 1', 'Classic 2', 'Classic 3'],
       },
     });
     const res = await fetch(`${url()}/api/rooms`);
     expect(res.headers.get('cache-control')).toBe('no-store');
     expect(await listRooms()).toEqual([
-      { id: expect.any(String), name: 'Sala', players: 1, status: 'lobby' },
+      {
+        id: expect.any(String),
+        name: 'Sala',
+        players: 1,
+        status: 'lobby',
+        levels: ['Classic 1', 'Classic 2', 'Classic 3'],
+      },
     ]);
   });
 
@@ -408,7 +492,13 @@ describe('server integration', () => {
     });
     expect(c.connected).toBe(true);
     expect(await listRooms()).toEqual([
-      { id: roomId, name: 'Sala', players: 2, status: 'playing' },
+      {
+        id: roomId,
+        name: 'Sala',
+        players: 2,
+        status: 'playing',
+        levels: ['Classic 1', 'Classic 2', 'Classic 3'],
+      },
     ]);
   });
 

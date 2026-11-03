@@ -8,6 +8,7 @@ const lobby: RoomLobby = {
   id: 'r1',
   name: 'Sala de Ana',
   players: [{ id: 'a', nickname: 'Ana', ready: false }],
+  levels: ['Classic 1'],
 };
 
 const ok = async (): Promise<AuthResult> => ({ ok: true });

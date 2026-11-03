@@ -16,6 +16,8 @@ export interface RoomSummary {
   name: string;
   players: number;
   status: RoomStatus;
+  /** The playlist's level names, in play order. */
+  levels: string[];
 }
 
 export interface LobbyPlayer {
@@ -29,6 +31,8 @@ export interface RoomLobby {
   id: RoomId;
   name: string;
   players: LobbyPlayer[];
+  /** The playlist's level names, in play order. */
+  levels: string[];
 }
 
 /**

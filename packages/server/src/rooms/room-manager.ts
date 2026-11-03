@@ -1,11 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import type { PlayerId, RoomError, RoomId, RoomLobby, RoomSummary } from '@bng/shared';
-import type { Room, RoomOptions } from './room.ts';
+import type { PlaylistLevel, Room, RoomOptions } from './room.ts';
 
 /** Upper bound on open rooms, so a client cannot exhaust the server by creating them. */
 export const MAX_ROOMS = 50;
 
-export type RoomFactory = (options: Pick<RoomOptions, 'id' | 'name' | 'onClosed'>) => Room;
+export type RoomFactory = (
+  options: Pick<RoomOptions, 'id' | 'name' | 'playlist' | 'onClosed'>,
+) => Room;
 
 export type RoomResult = { ok: true; lobby: RoomLobby } | { ok: false; error: RoomError };
 
@@ -30,12 +32,18 @@ export class RoomManager {
     return this.roomOfPlayer.get(playerId);
   }
 
-  create(playerId: PlayerId, name: string, nickname: string): RoomResult {
+  create(
+    playerId: PlayerId,
+    name: string,
+    nickname: string,
+    playlist: readonly PlaylistLevel[],
+  ): RoomResult {
     if (this.roomOfPlayer.has(playerId)) return { ok: false, error: 'alreadyInRoom' };
     if (this.rooms.size >= MAX_ROOMS) return { ok: false, error: 'tooManyRooms' };
     const room = this.createRoom({
       id: this.newId(),
       name,
+      playlist,
       onClosed: (closed) => this.forget(closed),
     });
     this.rooms.set(room.id, room);

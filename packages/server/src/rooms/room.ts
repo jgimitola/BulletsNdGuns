@@ -65,7 +65,7 @@ export interface RoomOptions {
   id: string;
   name: string;
   /** The levels a match plays, in order. The room keeps them for its whole life. Never empty. */
-  playlist: readonly Level[];
+  playlist: readonly PlaylistLevel[];
   transport: RoomTransport;
   scheduler: TickScheduler;
   /** Called once, when the room closes. */
@@ -75,7 +75,7 @@ export interface RoomOptions {
 export class Room {
   readonly id: string;
   readonly name: string;
-  private readonly playlist: readonly Level[];
+  private readonly playlist: readonly PlaylistLevel[];
   private readonly transport: RoomTransport;
   private readonly scheduler: TickScheduler;
   private readonly onClosed: (room: Room) => void;
@@ -109,6 +109,7 @@ export class Room {
       name: this.name,
       players: this.participants.size,
       status: this.phase.kind === 'lobby' ? 'lobby' : 'playing',
+      levels: this.levelNames(),
     };
   }
 
@@ -122,6 +123,7 @@ export class Room {
         nickname: p.nickname,
         ready: ready.has(id),
       })),
+      levels: this.levelNames(),
     };
   }
 
@@ -319,9 +321,13 @@ export class Room {
   }
 
   private levelAt(index: number): Level {
-    const level = this.playlist[index];
-    if (!level) throw new RangeError(`Playlist has no level ${index}`);
-    return level;
+    const entry = this.playlist[index];
+    if (!entry) throw new RangeError(`Playlist has no level ${index}`);
+    return entry.level;
+  }
+
+  private levelNames(): string[] {
+    return this.playlist.map((entry) => entry.name);
   }
 
   private ackOf(id: PlayerId): number {

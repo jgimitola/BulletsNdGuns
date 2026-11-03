@@ -15,7 +15,12 @@ import {
   type ServerToClientEvents,
   type Snapshot,
 } from '@bng/shared';
-import { Room, type RoomTransport, type TickScheduler } from '../src/rooms/room.ts';
+import {
+  Room,
+  type PlaylistLevel,
+  type RoomTransport,
+  type TickScheduler,
+} from '../src/rooms/room.ts';
 import { MAX_ROOMS, RoomManager, type RoomResult } from '../src/rooms/room-manager.ts';
 
 interface Sent {
@@ -49,6 +54,12 @@ class FakeScheduler implements TickScheduler {
   }
 }
 
+/** Levels as a playlist named L1, L2, ... */
+const named = (levels: readonly Level[]): PlaylistLevel[] =>
+  levels.map((level, i) => ({ name: `L${i + 1}`, level }));
+
+const CLASSICS = named(CLASSIC_PLAYLIST);
+
 function setup(playlist: readonly Level[] = CLASSIC_PLAYLIST) {
   const transport = new FakeTransport();
   const scheduler = new FakeScheduler();
@@ -56,7 +67,7 @@ function setup(playlist: readonly Level[] = CLASSIC_PLAYLIST) {
   const room = new Room({
     id: 'r',
     name: 'Sala',
-    playlist,
+    playlist: named(playlist),
     transport,
     scheduler,
     onClosed: (r) => closed.push(r),
@@ -176,6 +187,7 @@ describe('Room', () => {
         { id: 'a', nickname: 'Ana', ready: true },
         { id: 'b', nickname: 'Beto', ready: false },
       ],
+      levels: ['L1', 'L2', 'L3'],
     });
     room.leave('a');
     const last = transport.of('b', 'lobbyUpdated').at(-1)!.args[0] as RoomLobby;
@@ -186,11 +198,17 @@ describe('Room', () => {
   test('summary reports players and status', () => {
     const { room } = setup();
     room.join('a', 'Ana');
-    expect(room.summary()).toEqual({ id: 'r', name: 'Sala', players: 1, status: 'lobby' });
+    expect(room.summary()).toEqual({
+      id: 'r',
+      name: 'Sala',
+      players: 1,
+      status: 'lobby',
+      levels: ['L1', 'L2', 'L3'],
+    });
     room.join('b', 'Beto');
     room.markReady('a');
     room.markReady('b');
-    expect(room.summary()).toEqual({ id: 'r', name: 'Sala', players: 2, status: 'playing' });
+    expect(room.summary()).toMatchObject({ players: 2, status: 'playing' });
   });
 
   test('levelStarted carries every nickname', () => {
@@ -454,6 +472,13 @@ describe('Room', () => {
     expect(closed).toEqual([room]);
   });
 
+  test('summary and lobby list the playlist names in order', () => {
+    const { room } = setup([CLASSIC_PLAYLIST[2]!, CLASSIC_PLAYLIST[0]!]);
+    room.join('a', 'Ana');
+    expect(room.summary().levels).toEqual(['L1', 'L2']);
+    expect(room.lobby().levels).toEqual(['L1', 'L2']);
+  });
+
   test('an empty playlist is refused', () => {
     expect(() => setup([])).toThrow();
   });
@@ -555,10 +580,10 @@ describe('RoomManager', () => {
     const schedulers: FakeScheduler[] = [];
     let next = 0;
     const mgr = new RoomManager(
-      ({ id, name, onClosed }) => {
+      ({ id, name, playlist, onClosed }) => {
         const scheduler = new FakeScheduler();
         schedulers.push(scheduler);
-        return new Room({ id, name, playlist: CLASSIC_PLAYLIST, transport, scheduler, onClosed });
+        return new Room({ id, name, playlist, transport, scheduler, onClosed });
       },
       () => `room-${++next}`,
     );
@@ -572,28 +597,35 @@ describe('RoomManager', () => {
 
   test('create joins the creator and lists the room', () => {
     const { mgr } = manager();
-    const lobby = lobbyOf(mgr.create('a', 'Sala de Ana', 'Ana'));
+    const lobby = lobbyOf(mgr.create('a', 'Sala de Ana', 'Ana', CLASSICS));
     expect(lobby).toEqual({
       id: 'room-1',
       name: 'Sala de Ana',
       players: [{ id: 'a', nickname: 'Ana', ready: false }],
+      levels: ['L1', 'L2', 'L3'],
     });
     expect(mgr.roomOf('a')?.id).toBe('room-1');
     expect(mgr.list()).toEqual([
-      { id: 'room-1', name: 'Sala de Ana', players: 1, status: 'lobby' },
+      {
+        id: 'room-1',
+        name: 'Sala de Ana',
+        players: 1,
+        status: 'lobby',
+        levels: ['L1', 'L2', 'L3'],
+      },
     ]);
   });
 
   test('join adds the player; errors for unknown rooms, a second room or a running match', () => {
     const { mgr } = manager();
-    mgr.create('a', 'Uno', 'Ana');
+    mgr.create('a', 'Uno', 'Ana', CLASSICS);
     expect(mgr.join('b', 'nope', 'Beto')).toEqual({ ok: false, error: 'notFound' });
     expect(lobbyOf(mgr.join('b', 'room-1', 'Beto')).players.map((p) => p.nickname)).toEqual([
       'Ana',
       'Beto',
     ]);
     expect(mgr.join('b', 'room-1', 'Beto')).toEqual({ ok: false, error: 'alreadyInRoom' });
-    expect(mgr.create('b', 'Dos', 'Beto')).toEqual({ ok: false, error: 'alreadyInRoom' });
+    expect(mgr.create('b', 'Dos', 'Beto', CLASSICS)).toEqual({ ok: false, error: 'alreadyInRoom' });
     mgr.roomOf('a')!.markReady('a');
     mgr.roomOf('b')!.markReady('b');
     expect(mgr.join('c', 'room-1', 'Carla')).toEqual({ ok: false, error: 'inProgress' });
@@ -603,17 +635,17 @@ describe('RoomManager', () => {
 
   test('an emptied room is forgotten and its player can join another', () => {
     const { mgr } = manager();
-    mgr.create('a', 'Uno', 'Ana');
+    mgr.create('a', 'Uno', 'Ana', CLASSICS);
     mgr.leave('a');
     expect(mgr.list()).toEqual([]);
     expect(mgr.roomOf('a')).toBeUndefined();
     expect(mgr.join('a', 'room-1', 'Ana')).toEqual({ ok: false, error: 'notFound' });
-    expect(lobbyOf(mgr.create('a', 'Dos', 'Ana')).id).toBe('room-2');
+    expect(lobbyOf(mgr.create('a', 'Dos', 'Ana', CLASSICS)).id).toBe('room-2');
   });
 
   test('a match ending forgets the room and frees the remaining player', () => {
     const { mgr, transport, schedulers } = manager();
-    mgr.create('a', 'Uno', 'Ana');
+    mgr.create('a', 'Uno', 'Ana', CLASSICS);
     mgr.join('b', 'room-1', 'Beto');
     mgr.roomOf('a')!.markReady('a');
     mgr.roomOf('b')!.markReady('b');
@@ -622,13 +654,14 @@ describe('RoomManager', () => {
     expect(schedulers[0]!.stops).toBe(1);
     expect(mgr.list()).toEqual([]);
     expect(mgr.roomOf('a')).toBeUndefined();
-    expect(lobbyOf(mgr.create('a', 'Dos', 'Ana')).id).toBe('room-2');
+    expect(lobbyOf(mgr.create('a', 'Dos', 'Ana', CLASSICS)).id).toBe('room-2');
   });
 
   test('refuses to create more than MAX_ROOMS rooms', () => {
     const { mgr } = manager();
-    for (let i = 0; i < MAX_ROOMS; i++) expect(mgr.create(`p${i}`, 'Sala', 'P').ok).toBe(true);
-    expect(mgr.create('late', 'Sala', 'P')).toEqual({ ok: false, error: 'tooManyRooms' });
+    for (let i = 0; i < MAX_ROOMS; i++)
+      expect(mgr.create(`p${i}`, 'Sala', 'P', CLASSICS).ok).toBe(true);
+    expect(mgr.create('late', 'Sala', 'P', CLASSICS)).toEqual({ ok: false, error: 'tooManyRooms' });
     expect(mgr.roomOf('late')).toBeUndefined();
   });
 

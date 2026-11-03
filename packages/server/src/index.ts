@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { Server } from 'socket.io';
-import { CLASSIC_PLAYLIST, MAX_SOCKET_MESSAGE_BYTES } from '@bng/shared';
+import { MAX_SOCKET_MESSAGE_BYTES } from '@bng/shared';
 import { toNodeHandler } from 'better-auth/node';
 import { kyselyAccountDirectory } from './auth/account-directory.ts';
 import { createAuth } from './auth/auth.ts';
@@ -52,13 +52,13 @@ export async function startServer(
   const transport = createSocketTransport(io);
   // Loops of open rooms only: a room drops its own when it closes.
   const loops = new Set<TickLoop>();
-  const rooms = new RoomManager(({ id, name, onClosed }) => {
+  const rooms = new RoomManager(({ id, name, playlist, onClosed }) => {
     const loop = new TickLoop();
     loops.add(loop);
     return new Room({
       id,
       name,
-      playlist: CLASSIC_PLAYLIST,
+      playlist,
       transport,
       scheduler: loop,
       onClosed: (room) => {
@@ -68,6 +68,7 @@ export async function startServer(
     });
   });
   attachSocketGateway(io, rooms, {
+    loadPlaylist: (accountId, ids) => levels.loadPlaylist(accountId, ids),
     registry,
     sessionAccount: (headers) => auth.sessionAccount(headers),
   });

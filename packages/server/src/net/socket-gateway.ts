@@ -1,6 +1,7 @@
 import type { IncomingHttpHeaders } from 'node:http';
 import type { Server } from 'socket.io';
 import {
+  DEFAULT_PLAYLIST,
   INPUT_RATE_LIMIT_FACTOR,
   TICK_RATE,
   parseClaimNickname,
@@ -8,12 +9,15 @@ import {
   parseInput,
   parseJoinRoom,
   type ClientToServerEvents,
+  type LevelId,
   type NicknameAck,
   type RoomAck,
   type ServerToClientEvents,
 } from '@bng/shared';
 import type { SessionAccount } from '../auth/auth.ts';
+import type { ServiceResult } from '../levels/level-service.ts';
 import type { NicknameRegistry } from '../nicknames/nickname-registry.ts';
+import type { PlaylistLevel } from '../rooms/room.ts';
 import type { RoomManager } from '../rooms/room-manager.ts';
 import { rateLimiter } from './rate-limiter.ts';
 import type { RoomTransport } from '../rooms/room.ts';
@@ -34,6 +38,8 @@ export interface GatewayDeps {
   registry: NicknameRegistry;
   /** The signed-in account of a handshake; null for guests. Never throws. */
   sessionAccount(headers: IncomingHttpHeaders): Promise<SessionAccount | null>;
+  /** The levels of a new room, as its own copies; fails when any is missing, hidden or unplayable. */
+  loadPlaylist(accountId: string, ids: readonly LevelId[]): Promise<ServiceResult<PlaylistLevel[]>>;
 }
 
 const RATE_WINDOW_MS = 1000;
@@ -95,13 +101,19 @@ export function attachSocketGateway(io: GameServer, rooms: RoomManager, deps: Ga
         else answer(result);
       });
     });
-    socket.on('createRoom', (raw, ack) => {
+    socket.on('createRoom', async (raw, ack) => {
       if (!actionRate.hit()) return kick();
       const request = parseCreateRoom(raw);
       if (!request) return reply(ack, { ok: false, error: 'invalid' });
       const nickname = registry.nicknameOf(socket.id);
       if (!account || nickname === null) return reply(ack, { ok: false, error: 'signInRequired' });
-      reply(ack, rooms.create(socket.id, request.name, nickname));
+      // Fail fast before touching the database; the manager checks again after the wait.
+      if (rooms.roomOf(socket.id)) return reply(ack, { ok: false, error: 'alreadyInRoom' });
+      const playlist = await deps.loadPlaylist(account.id, request.levelIds ?? DEFAULT_PLAYLIST);
+      // A creator who left while the levels loaded must not leave an empty room behind.
+      if (socket.disconnected) return;
+      if (!playlist.ok) return reply(ack, { ok: false, error: 'levelUnavailable' });
+      reply(ack, rooms.create(socket.id, request.name, nickname, playlist.value));
     });
     socket.on('joinRoom', (raw, ack) => {
       if (!actionRate.hit()) return kick();
