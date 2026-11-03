@@ -10,6 +10,7 @@ import type {
   ServerToClientEvents,
   Snapshot,
 } from '@bng/shared';
+import { loadConfig, type ServerConfig } from '../src/config.ts';
 import { startServer } from '../src/index.ts';
 
 type Client = Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -19,6 +20,27 @@ let clients: Client[] = [];
 let timers: ReturnType<typeof setInterval>[] = [];
 
 const url = (): string => `http://localhost:${server.port}`;
+
+function testConfig(): ServerConfig {
+  return { ...loadConfig({}), port: 0, clientDist: 'does-not-exist', databasePath: ':memory:' };
+}
+
+/** Registers an account over HTTP; returns its session cookie. */
+async function register(nickname: string, email = `${nickname}@bng.test`): Promise<string> {
+  const res = await fetch(`${url()}/api/auth/sign-up/email`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      email,
+      password: 'password123',
+      name: nickname,
+      username: nickname,
+      displayUsername: nickname,
+    }),
+  });
+  if (!res.ok) throw new Error(`register ${nickname}: ${res.status} ${await res.text()}`);
+  return (res.headers.get('set-cookie') ?? '').split(';')[0] ?? '';
+}
 
 function newClient(): Client {
   const c: Client = connect(url(), { transports: ['websocket'], forceNew: true });
@@ -33,7 +55,7 @@ function once<T>(c: Client, event: string): Promise<T> {
 }
 
 beforeEach(async () => {
-  server = await startServer({ port: 0, clientDist: 'does-not-exist' });
+  server = await startServer(testConfig());
 });
 
 afterEach(async () => {
@@ -72,6 +94,24 @@ async function listRooms(): Promise<RoomSummary[]> {
   const res = await fetch(`${url()}/api/rooms`);
   return ((await res.json()) as { rooms: RoomSummary[] }).rooms;
 }
+
+describe('accounts over HTTP', () => {
+  test('registering returns a session cookie that get-session reads', async () => {
+    const cookie = await register('Ana');
+    expect(cookie).toMatch(/^better-auth.session_token=/);
+    const res = await fetch(`${url()}/api/auth/get-session`, { headers: { cookie } });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { user: { displayUsername: string } }).user.displayUsername).toBe(
+      'Ana',
+    );
+  });
+
+  test('other /api paths are still a JSON 404', async () => {
+    const res = await fetch(`${url()}/api/nope`);
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: 'notFound' });
+  });
+});
 
 describe('server integration', () => {
   test('nobody is in a room on connect; GET /api/rooms lists created rooms', async () => {

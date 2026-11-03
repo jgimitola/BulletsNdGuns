@@ -7,7 +7,10 @@ import {
   type ClientToServerEvents,
   type ServerToClientEvents,
 } from '@bng/shared';
+import { toNodeHandler } from 'better-auth/node';
+import { createAuth } from './auth/auth.ts';
 import { loadConfig, type ServerConfig } from './config.ts';
+import { openDatabase } from './db/database.ts';
 import { createApp } from './http/create-app.ts';
 import { attachSocketGateway, createSocketTransport } from './net/socket-gateway.ts';
 import { Room } from './rooms/room.ts';
@@ -17,8 +20,14 @@ import { TickLoop } from './rooms/tick-loop.ts';
 export async function startServer(
   config: ServerConfig,
 ): Promise<{ port: number; close(): Promise<void> }> {
+  const db = openDatabase(config.databasePath);
+  const auth = await createAuth(db, config, {
+    nicknameChanged: () => {},
+  });
   // `rooms` is only read once requests arrive, after it is assigned below.
-  const httpServer = createServer(createApp(config, { listRooms: () => rooms.list() }));
+  const httpServer = createServer(
+    createApp(config, { listRooms: () => rooms.list(), authHandler: toNodeHandler(auth.handler) }),
+  );
   const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
     maxHttpBufferSize: MAX_SOCKET_MESSAGE_BYTES,
   });
@@ -56,6 +65,7 @@ export async function startServer(
     async close() {
       for (const loop of loops) loop.stop();
       await io.close(); // also closes the underlying http server
+      await db.close();
     },
   };
 }

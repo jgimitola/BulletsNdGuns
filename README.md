@@ -42,7 +42,7 @@ VITE_DEBUG=hitboxes,panel npm run dev       # bash
 
 Or put `VITE_DEBUG=...` in `packages/client/.env.local` (git-ignored). The panel drags by its title bar and collapses when the title is clicked. Production builds never include the overlay.
 
-Production: `npm run build && npm start`. Environment: `PORT` (default 3000), `CLIENT_DIST` (default `packages/client/dist`). `GET /healthz` returns `{"status":"ok"}`.
+Production: `npm run build && npm start`. Environment: `PORT` (default 3000), `CLIENT_DIST` (default `packages/client/dist`), `DATABASE_PATH` (SQLite file for accounts, default `data/bng.sqlite`, git-ignored), `BETTER_AUTH_SECRET` (required in production; a long random string, e.g. `openssl rand -base64 32`), `BETTER_AUTH_URL` (the public URL players open, default `http://localhost:$PORT`) and `TRUSTED_ORIGINS` (comma-separated extra origins allowed to call the auth API; outside production it defaults to the Vite dev server, `http://localhost:5173`). `GET /healthz` returns `{"status":"ok"}`.
 
 The client build is split so the first screen only needs our entry code, React and a small vendor chunk. Phaser and the scenes (`src/game.ts`) start downloading at page load but are only booted once the socket connects, and the room list (with TanStack Query) is fetched when the menu shows. The build also writes `.br` and `.gz` copies of text files; the server sends those to browsers that accept them and falls back to the original file otherwise.
 
@@ -50,7 +50,7 @@ Docker:
 
 ```sh
 docker build -t bulletsndguns .
-docker run -p 3000:3000 bulletsndguns
+docker run -p 3000:3000 -v bng-data:/data \n  -e BETTER_AUTH_SECRET=... -e BETTER_AUTH_URL=http://localhost:3000 bulletsndguns
 ```
 
 The server and shared code run as TypeScript directly through Node 24 type stripping, so there is no server build step.

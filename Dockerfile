@@ -10,7 +10,7 @@ RUN npm run build -w @bng/client
 
 FROM node:24-alpine
 WORKDIR /app
-ENV NODE_ENV=production PORT=3000
+ENV NODE_ENV=production PORT=3000 DATABASE_PATH=/data/bng.sqlite
 COPY package.json package-lock.json ./
 # Every workspace manifest must be present for `npm ci` to accept the lockfile; only the server's
 # production dependencies are installed (plus the @bng/shared workspace link it depends on).
@@ -21,6 +21,9 @@ RUN npm ci --omit=dev -w @bng/server && npm cache clean --force
 COPY packages/shared/src ./packages/shared/src
 COPY packages/server/src ./packages/server/src
 COPY --from=build /app/packages/client/dist ./packages/client/dist
+# Accounts live in the SQLite file under /data: mount a volume there to keep them across containers.
+RUN mkdir /data && chown node:node /data
+VOLUME /data
 USER node
 EXPOSE 3000
 CMD ["node", "packages/server/src/index.ts"]
