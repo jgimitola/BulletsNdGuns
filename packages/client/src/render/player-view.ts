@@ -12,13 +12,14 @@ import { TextureKey } from '../assets/manifest.ts';
 
 export type PlayerSheet = 'player' | 'enemy';
 
-const NICKNAME_FONT_SIZE = 16;
+export const NICKNAME_FONT_SIZE = 16;
 /** CSS font shorthand of the nickname labels, also used to preload the font. */
 export const NICKNAME_FONT = `${NICKNAME_FONT_SIZE}px Tiny5`;
 const NICKNAME_COLOR: Record<PlayerSheet, string> = { player: '#ffd23f', enemy: '#ffffff' };
 /** Gap between the top of the sprite and the bottom of its label. */
 const NICKNAME_GAP = 2;
-const NICKNAME_OFFSET_Y = (PLAYER_FRAME_HEIGHT * PLAYER_SCALE) / 2 + NICKNAME_GAP;
+/** Sprite centre to the bottom of its nickname label. */
+export const NICKNAME_OFFSET_Y = (PLAYER_FRAME_HEIGHT * PLAYER_SCALE) / 2 + NICKNAME_GAP;
 
 /**
  * One player sprite with its nickname above it: the local player uses the player sheet and a gold

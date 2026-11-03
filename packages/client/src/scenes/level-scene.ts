@@ -13,6 +13,7 @@ import {
   type PlayerState,
 } from '@bng/shared';
 import { SoundKey, TextureKey } from '../assets/manifest.ts';
+import type { DebugOverlay } from '../debug/debug-overlay.ts';
 import { KeyboardInput } from '../input/keyboard-input.ts';
 import type { NetworkClient } from '../net/network-client.ts';
 import { OwnBulletTracker } from '../net/own-bullets.ts';
@@ -49,6 +50,8 @@ interface LevelSession {
   jumpSound: Phaser.Sound.BaseSound;
   shotSound: Phaser.Sound.BaseSound;
   accumulator: number;
+  /** Dev-only overlay; null until its chunk loads, and always null in production builds. */
+  debug: DebugOverlay | null;
 }
 
 export class LevelScene extends Phaser.Scene {
@@ -120,14 +123,24 @@ export class LevelScene extends Phaser.Scene {
       jumpSound,
       shotSound,
       accumulator: 0,
+      debug: null,
     };
     this.session = session;
     this.render(session);
+    // DEV is a build-time constant, so production builds drop this branch and the debug chunk.
+    if (import.meta.env.DEV && import.meta.env.VITE_DEBUG) {
+      void import('../debug/debug-overlay.ts').then((m) => {
+        // A fast level change can shut this run down before the chunk arrives.
+        if (this.session !== session) return;
+        session.debug = m.createDebugOverlay(this, level);
+      });
+    }
 
     const unsubscribers = [
       network.on('snapshot', (s) => {
         if (s.levelIndex !== levelIndex) return;
-        session.predictor.reconcile(s);
+        const correction = session.predictor.reconcile(s);
+        if (correction !== null) session.debug?.correction(correction);
         session.ownBullets.reconcile(s);
         const now = performance.now();
         session.buffer.push(s, now);
@@ -147,6 +160,7 @@ export class LevelScene extends Phaser.Scene {
       // Sounds belong to the game-wide manager, so each run removes its own or they pile up.
       jumpSound.destroy();
       shotSound.destroy();
+      session.debug?.destroy();
       this.session = undefined;
     });
   }
@@ -164,7 +178,8 @@ export class LevelScene extends Phaser.Scene {
   }
 
   private step(session: LevelSession): void {
-    const { frame, jumped, bullet } = session.predictor.applyInput(session.input.read());
+    const { frame, jumped, bullet, trace } = session.predictor.applyInput(session.input.read());
+    session.debug?.step(session.predictor.state, frame, trace);
     session.network.sendInput(frame);
     session.ownBullets.step();
     if (bullet) session.ownBullets.spawn(bullet);
@@ -190,6 +205,18 @@ export class LevelScene extends Phaser.Scene {
     );
     session.remoteBulletViews.sync(sampled.bullets.filter((b) => b.ownerId !== session.playerId));
     session.pickups.sync(sampled.latest.ammoPickupIds, sampled.latest.coinIds);
+    session.debug?.render({
+      local,
+      remotes: sampled.players.filter((p) => p.id !== session.playerId),
+      bullets: [
+        ...session.ownBullets.bullets,
+        ...sampled.bullets.filter((b) => b.ownerId !== session.playerId),
+      ],
+      ammoPickupIds: sampled.latest.ammoPickupIds,
+      coinIds: sampled.latest.coinIds,
+      serverLocal: sampled.latest.players.find((p) => p.id === session.playerId),
+      unacked: session.predictor.pending.length,
+    });
   }
 
   private syncRemotePlayers(session: LevelSession, players: readonly PlayerState[]): void {

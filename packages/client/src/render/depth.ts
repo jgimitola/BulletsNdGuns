@@ -13,4 +13,6 @@ export const Depth = {
   portal: 7,
   /** Not in the original: names stay readable over everything else. */
   nicknames: 8,
+  /** Debug overlay (dev only): over everything, so it never hides behind what it explains. */
+  debug: 9,
 } as const;
