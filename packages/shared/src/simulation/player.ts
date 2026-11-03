@@ -71,7 +71,7 @@ export interface PlayerStepResult {
 }
 
 /** Players spawn facing the centre of the level. */
-function spawnFacing(side: Side): Facing {
+export function spawnFacing(side: Side): Facing {
   return side === 'left' ? 'right' : 'left';
 }
 
