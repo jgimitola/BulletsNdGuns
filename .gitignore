@@ -5,3 +5,6 @@ coverage/
 .playwright-mcp/
 .superpowers/
 .env*.local
+# Database copies (backups hold every account's email and password hash).
+*.sqlite
+*.sqlite-*

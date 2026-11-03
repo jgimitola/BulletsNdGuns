@@ -9,6 +9,8 @@ RUN npm ci
 RUN npm run build -w @bng/client
 
 FROM node:24-alpine
+# su-exec: the entrypoint's way to drop from root to `node` (see docker-entrypoint.sh).
+RUN apk add --no-cache su-exec
 WORKDIR /app
 ENV NODE_ENV=production PORT=3000 DATABASE_PATH=/data/bng.sqlite
 COPY package.json package-lock.json ./
@@ -21,9 +23,12 @@ RUN npm ci --omit=dev -w @bng/server && npm cache clean --force
 COPY packages/shared/src ./packages/shared/src
 COPY packages/server/src ./packages/server/src
 COPY --from=build /app/packages/client/dist ./packages/client/dist
-# Accounts live in the SQLite file under /data: mount a volume there to keep them across containers.
+# Accounts and levels live in the SQLite file under /data: mount a volume there to keep them across
+# containers (`docker run -v bng-data:/data`, or a Railway volume). No VOLUME instruction: Railway
+# refuses Dockerfiles that declare one.
 RUN mkdir /data && chown node:node /data
-VOLUME /data
-USER node
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/bng-entrypoint
+# Starts as root only to fix the volume's owner; the server itself runs as `node`.
+ENTRYPOINT ["bng-entrypoint"]
 EXPOSE 3000
 CMD ["node", "packages/server/src/index.ts"]
