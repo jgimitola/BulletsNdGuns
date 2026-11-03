@@ -10,7 +10,8 @@ import {
   TICK_SECONDS,
 } from '../constants.ts';
 import type { Vec2 } from '../geometry.ts';
-import type { Level, Side } from '../levels/level-registry.ts';
+import type { Side } from '../levels/level-data.ts';
+import type { Level } from '../levels/level.ts';
 import { moveBox, type Contacts, type CornerAssistEvent } from '../physics/tile-collision.ts';
 import type { InputFrame } from '../protocol/input.ts';
 import { nextHorizontalVelocity, type Direction } from './horizontal-velocity.ts';

@@ -22,8 +22,7 @@ export const SNAPSHOT_EVERY_TICKS = 3,
 export const MAX_CATCH_UP_TICKS = 5;
 export const INPUT_QUEUE_LIMIT = 8,
   INPUT_STARVATION_TICKS = 6;
-export const PLATFORM_LAYER = 'Plataformas',
-  TILESET_NAME = 'p1LevelTS';
+export const TILESET_NAME = 'p1LevelTS';
 export const LEVEL_BACKGROUND = 'rgb(250, 143, 67)';
 /** A remote player moving further than this between two snapshots (a respawn) snaps instead of gliding. */
 export const REMOTE_SNAP_DISTANCE = 64;

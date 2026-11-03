@@ -1,23 +1,21 @@
 import { expect, test } from 'vitest';
-import level1Map from '../src/levels/maps/level-1.json' with { type: 'json' };
-import level2Map from '../src/levels/maps/level-2.json' with { type: 'json' };
 import { overlaps } from '../src/geometry.ts';
-import { decodeLayer } from '../src/physics/tiled.ts';
-import { buildTileGrid, tilesWithin } from '../src/physics/tile-grid.ts';
+import { CLASSIC_PLAYLIST } from '../src/levels/classic-levels.ts';
+import { tilesWithin } from '../src/physics/tile-grid.ts';
 import { touchesSolidTile } from '../src/physics/tile-collision.ts';
 
-const level1Grid = buildTileGrid(level1Map, 'Plataformas');
+const level1Grid = CLASSIC_PLAYLIST[0]!.grid;
 
-test('decodes base64 level 1 floor row', () => {
-  const g = buildTileGrid(level1Map, 'Plataformas');
+test('level 1 grid: floor row and a platform', () => {
+  const g = level1Grid;
   expect([g.cols, g.rows, g.tileWidth, g.tileHeight]).toEqual([25, 20, 32, 30]);
   for (let c = 0; c < 25; c++) expect(g.isSolid(c, 18)).toBe(true);
   expect(g.isSolid(0, 17)).toBe(false);
   expect(g.isSolid(7, 16)).toBe(true);
 });
 
-test('decodes array-encoded level 2', () => {
-  const g = buildTileGrid(level2Map, 'Plataformas');
+test('level 2 grid: top-left decoration is solid', () => {
+  const g = CLASSIC_PLAYLIST[1]!.grid;
   expect(g.isSolid(0, 0)).toBe(true);
   expect(g.isSolid(2, 0)).toBe(false);
 });
@@ -34,25 +32,6 @@ test('overlaps is strict (touching edges do not overlap)', () => {
   expect(overlaps(a, { x: 9, y: 9, width: 10, height: 10 })).toBe(true);
   expect(overlaps(a, { x: 10, y: 0, width: 10, height: 10 })).toBe(false);
   expect(overlaps(a, { x: 0, y: 10, width: 10, height: 10 })).toBe(false);
-});
-
-test('decodeLayer: base64 and array encodings agree on gids; flip bits are masked; compression throws', () => {
-  const data = [1, 0, 0x80000002, 3];
-  const base64 = 'AQAAAAAAAAACAACAAwAAAA=='; // the same four gids as little-endian uint32
-  const map = (layer: object) => ({
-    width: 4,
-    height: 1,
-    tilewidth: 32,
-    tileheight: 30,
-    tilesets: [{ name: 't', firstgid: 1 }],
-    layers: [{ name: 'L', type: 'tilelayer', ...layer }],
-  });
-  expect([...decodeLayer(map({ data }), 'L')]).toEqual([1, 0, 2, 3]);
-  expect([...decodeLayer(map({ data: base64, encoding: 'base64' }), 'L')]).toEqual([1, 0, 2, 3]);
-  expect(() =>
-    decodeLayer(map({ data: base64, encoding: 'base64', compression: 'zlib' }), 'L'),
-  ).toThrow();
-  expect(() => decodeLayer(map({ data }), 'Missing')).toThrow();
 });
 
 test('tilesWithin uses GetTilesWithinWorldXY rounding, row-major order, solid tiles only', () => {

@@ -1,20 +1,16 @@
 import { expect, test } from 'vitest';
-import { PLATFORM_LAYER } from '../src/constants.ts';
 import { CLASSIC_LEVELS, CLASSIC_PLAYLIST } from '../src/levels/classic-levels.ts';
 import { parseLevelData } from '../src/levels/level-data.ts';
-import { LEVELS } from '../src/levels/level-registry.ts';
 import { ammoPickupRect, coinRect, portalRect } from '../src/levels/level.ts';
-import { decodeLayer } from '../src/physics/tiled.ts';
 
-test.each([0, 1, 2])('classic level %i matches the original Tiled map and registry', (i) => {
-  const classic = CLASSIC_LEVELS[i]!;
-  const old = LEVELS[i]!;
-  expect(classic.data.tiles).toEqual([...decodeLayer(old.map, PLATFORM_LAYER)]);
-  expect(classic.data.spawns).toEqual(old.spawns);
-  expect(classic.data.portal).toEqual(old.portal);
-  expect(classic.data.coins).toEqual(old.coins.map(({ x, y }) => ({ x, y })));
-  expect(classic.data.ammo).toEqual(old.ammoPickups.map(({ x, y }) => ({ x, y })));
-  expect(parseLevelData(classic.data)).toEqual(classic.data);
+test('classic levels keep their solid tile counts', () => {
+  expect(CLASSIC_LEVELS.map((l) => l.data.tiles.filter((t) => t !== 0).length)).toEqual([
+    109, 136, 131,
+  ]);
+});
+
+test('classic levels are valid level data', () => {
+  for (const l of CLASSIC_LEVELS) expect(parseLevelData(l.data)).toEqual(l.data);
 });
 
 test('classic slugs, names and playlist', () => {

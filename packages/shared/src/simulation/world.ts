@@ -1,12 +1,6 @@
 import { overlaps, type Rect } from '../geometry.ts';
-import {
-  ammoPickupRect,
-  coinRect,
-  getLevel,
-  portalRect,
-  type Pickup,
-  type Side,
-} from '../levels/level-registry.ts';
+import type { Side } from '../levels/level-data.ts';
+import { ammoPickupRect, coinRect, portalRect, type Level, type Pickup } from '../levels/level.ts';
 import { NEUTRAL_INPUT, type InputFrame } from '../protocol/input.ts';
 import { bulletBox, stepBullet } from './bullet.ts';
 import { bodyBox } from './player-body.ts';
@@ -21,6 +15,7 @@ import {
 
 export interface WorldState {
   tick: number;
+  /** Index of the level in the room's playlist. */
   levelIndex: number;
   players: PlayerState[];
   bullets: BulletState[];
@@ -35,8 +30,10 @@ export type WorldEvent =
   | { type: 'pickup'; kind: 'ammo' | 'coin'; pickupId: number; playerId: PlayerId }
   | { type: 'levelCompleted'; levelIndex: number; byPlayerId: PlayerId };
 
-export function createWorld(players: readonly { id: PlayerId; side: Side }[]): WorldState {
-  const level = getLevel(0);
+export function createWorld(
+  players: readonly { id: PlayerId; side: Side }[],
+  level: Level,
+): WorldState {
   return {
     tick: 0,
     levelIndex: 0,
@@ -48,8 +45,7 @@ export function createWorld(players: readonly { id: PlayerId; side: Side }[]): W
 }
 
 /** Recreates players at the new level's spawns (keeping score), clears bullets, resets pickups. */
-export function startLevel(world: WorldState, levelIndex: number): WorldState {
-  const level = getLevel(levelIndex);
+export function startLevel(world: WorldState, levelIndex: number, level: Level): WorldState {
   return {
     tick: world.tick,
     levelIndex,
@@ -73,8 +69,8 @@ function firstOverlap(boxes: readonly Rect[], rect: Rect): number {
 export function stepWorld(
   world: WorldState,
   inputs: ReadonlyMap<PlayerId, InputFrame>,
+  level: Level,
 ): { world: WorldState; events: WorldEvent[] } {
-  const level = getLevel(world.levelIndex);
   const events: WorldEvent[] = [];
 
   // 1. Players, in join order.

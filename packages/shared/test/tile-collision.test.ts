@@ -8,21 +8,11 @@ import {
   type MoveResult,
 } from '../src/physics/tile-collision.ts';
 
-/** `#` is a solid tile (gid 1), anything else is empty. Tiles are 32 x 30 like the levels. */
+/** `#` is a solid tile (id 1), anything else is empty. Tiles are 32 x 30 like the levels. */
 function gridFromRows(rows: string[]): TileGrid {
   const cols = rows[0]!.length;
   const data = rows.flatMap((row) => [...row].map((c) => (c === '#' ? 1 : 0)));
-  return buildTileGrid(
-    {
-      width: cols,
-      height: rows.length,
-      tilewidth: 32,
-      tileheight: 30,
-      layers: [{ name: 'L', type: 'tilelayer', data }],
-      tilesets: [{ name: 't', firstgid: 1 }],
-    },
-    'L',
-  );
+  return buildTileGrid(data, cols, rows.length, 32, 30);
 }
 
 const DT = 1 / 60;

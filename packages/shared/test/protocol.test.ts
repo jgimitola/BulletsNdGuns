@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
 import { parseInput, toSnapshot } from '../src/protocol/messages.ts';
+import { CLASSIC_PLAYLIST } from '../src/levels/classic-levels.ts';
 import { createWorld } from '../src/simulation/world.ts';
 
 const ok = { level: 0, left: false, right: false, jumpPressed: false, shootPressed: false };
@@ -55,10 +56,13 @@ test('parseInput accepts and strips extras', () => {
 });
 
 test('toSnapshot maps pickups to ids and carries ack', () => {
-  const world = createWorld([
-    { id: 'a', side: 'left' },
-    { id: 'b', side: 'right' },
-  ]);
+  const world = createWorld(
+    [
+      { id: 'a', side: 'left' },
+      { id: 'b', side: 'right' },
+    ],
+    CLASSIC_PLAYLIST[0]!,
+  );
   const snap = toSnapshot(world, 7);
   expect(snap.coinIds).toHaveLength(12);
   expect(snap.ammoPickupIds).toHaveLength(6);
@@ -72,7 +76,7 @@ test('toSnapshot maps pickups to ids and carries ack', () => {
 });
 
 test('toSnapshot copies the shots it is given', () => {
-  const world = createWorld([{ id: 'a', side: 'left' }]);
+  const world = createWorld([{ id: 'a', side: 'left' }], CLASSIC_PLAYLIST[0]!);
   const shots = [{ id: 'a:1', ownerId: 'a', x: 1, y: 2, vx: 600 }];
   const snap = toSnapshot(world, 0, shots);
   expect(snap.shots).toEqual(shots);

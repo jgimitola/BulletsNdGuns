@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { GRAVITY_Y, JUMP_VELOCITY } from '../src/constants.ts';
 import type { Rect } from '../src/geometry.ts';
-import { getLevel } from '../src/levels/level-registry.ts';
+import { CLASSIC_PLAYLIST } from '../src/levels/classic-levels.ts';
 import { NEUTRAL_INPUT, type InputFrame, type InputKeys } from '../src/protocol/input.ts';
 import { MOVEMENT } from '../src/simulation/movement-tuning.ts';
 import { bodyBox, hitboxCentreFromSprite, spriteCentre } from '../src/simulation/player-body.ts';
@@ -14,7 +14,7 @@ import {
   type PlayerStepResult,
 } from '../src/simulation/player.ts';
 
-const L1 = getLevel(0);
+const L1 = CLASSIC_PLAYLIST[0]!;
 const DT = 1 / 60;
 /** Level 1's floor (row 18) top edge. */
 const FLOOR_TOP = 540;

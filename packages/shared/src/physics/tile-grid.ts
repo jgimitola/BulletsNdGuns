@@ -3,7 +3,6 @@
 // WorldToTileX.js / WorldToTileY.js.
 
 import type { Rect } from '../geometry.ts';
-import { decodeLayer, type TiledMap } from './tiled.ts';
 
 export interface Tile {
   col: number;
@@ -19,30 +18,8 @@ export interface TileGrid {
   tile(col: number, row: number): Tile | null;
 }
 
-/**
- * Builds the collision grid for a layer, as the original did with
- * `layer.setCollisionByExclusion(-1, true)`: every non-empty tile is solid.
- */
-export function buildTileGrid(map: TiledMap, layerName: string): TileGrid {
-  const gids = decodeLayer(map, layerName);
-  const cols = map.width;
-  const rows = map.height;
-
-  const isSolid = (col: number, row: number): boolean =>
-    col >= 0 && col < cols && row >= 0 && row < rows && gids[row * cols + col] !== 0;
-
-  return {
-    cols,
-    rows,
-    tileWidth: map.tilewidth,
-    tileHeight: map.tileheight,
-    isSolid,
-    tile: (col, row) => (isSolid(col, row) ? { col, row } : null),
-  };
-}
-
 /** The collision grid of a level's tiles (row-major ids): every non-empty tile is solid. */
-export function buildTileGridFromTiles(
+export function buildTileGrid(
   tiles: readonly number[],
   cols: number,
   rows: number,

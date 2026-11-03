@@ -1,5 +1,5 @@
 import type { Rect, Vec2 } from '../geometry.ts';
-import { buildTileGridFromTiles, type TileGrid } from '../physics/tile-grid.ts';
+import { buildTileGrid, type TileGrid } from '../physics/tile-grid.ts';
 import { TILE_HEIGHT, TILE_WIDTH, type PlayableLevelData, type Side } from './level-data.ts';
 
 /** A coin or ammo box in a running level. Its id is its index in the level data. */
@@ -26,7 +26,7 @@ export interface Level {
 export function buildLevel(data: PlayableLevelData): Level {
   return {
     data,
-    grid: buildTileGridFromTiles(data.tiles, data.cols, data.rows, TILE_WIDTH, TILE_HEIGHT),
+    grid: buildTileGrid(data.tiles, data.cols, data.rows, TILE_WIDTH, TILE_HEIGHT),
     spawns: data.spawns,
     portal: data.portal,
     ammoPickups: data.ammo.map(({ x, y }, id) => ({ id, x, y })),

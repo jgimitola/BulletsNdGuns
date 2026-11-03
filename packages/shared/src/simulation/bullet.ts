@@ -1,6 +1,6 @@
 import { BULLET_SCALE, BULLET_SIZE, TICK_SECONDS, WORLD_WIDTH } from '../constants.ts';
 import type { Rect } from '../geometry.ts';
-import type { Level } from '../levels/level-registry.ts';
+import type { Level } from '../levels/level.ts';
 import { touchesSolidTile } from '../physics/tile-collision.ts';
 import type { BulletState } from './player.ts';
 
