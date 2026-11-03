@@ -67,7 +67,10 @@ export class PlayerView {
     // world's edges: keep the whole name on screen. Whole pixels keep it crisp.
     const half = this.label.width / 2;
     const x = Math.min(Math.max(state.x, half), WORLD_WIDTH - half);
-    this.label.setPosition(Math.round(x), Math.round(state.y + SPRITE_OFFSET_Y - NICKNAME_OFFSET_Y));
+    this.label.setPosition(
+      Math.round(x),
+      Math.round(state.y + SPRITE_OFFSET_Y - NICKNAME_OFFSET_Y),
+    );
   }
 
   destroy(): void {

@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
 import {
-  getLevel,
+  buildLevel,
   INTERPOLATION_DELAY_MS,
   LEVEL_BACKGROUND,
   MAX_CATCH_UP_TICKS,
-  PLATFORM_LAYER,
   TICK_MS,
+  TILE_HEIGHT,
+  TILE_WIDTH,
   TILESET_NAME,
   matchResult,
   type LevelStarted,
@@ -23,6 +24,7 @@ import { SnapshotBuffer } from '../net/snapshot-buffer.ts';
 import { BulletViews } from '../render/bullet-views.ts';
 import { Depth } from '../render/depth.ts';
 import { PickupViews } from '../render/pickup-views.ts';
+import { toPhaserRows } from '../render/level-tiles.ts';
 import { PlayerView } from '../render/player-view.ts';
 import { getServices } from '../services.ts';
 import type { UiStore } from '../ui/store.ts';
@@ -77,18 +79,31 @@ export class LevelScene extends Phaser.Scene {
     if (playerId === undefined || !me) throw new Error('Local player is missing from the level');
     ui.getState().setHud(me.ammo, me.score);
     ui.getState().setScreen('level');
-    const level = getLevel(levelIndex);
+    const level = buildLevel(data.level);
 
     this.cameras.main.setBackgroundColor(LEVEL_BACKGROUND);
     const jumpSound = this.sound.add(SoundKey.jump, { volume: SFX_VOLUME, loop: false });
     const shotSound = this.sound.add(SoundKey.shot, { volume: SFX_VOLUME, loop: false });
 
-    const map = this.make.tilemap({ key: level.tilemapKey });
-    const tileset = map.addTilesetImage(TILESET_NAME, TextureKey.levelTiles);
-    if (!tileset) throw new Error(`Tileset ${TILESET_NAME} is missing from ${level.tilemapKey}`);
-    const platforms = map.createLayer(PLATFORM_LAYER, tileset, 0, 0, false);
+    const map = this.make.tilemap({
+      data: toPhaserRows(level.data),
+      tileWidth: TILE_WIDTH,
+      tileHeight: TILE_HEIGHT,
+    });
+    // firstgid 1, as in the original Tiled maps: tile id 1 is the first tile of the image.
+    const tileset = map.addTilesetImage(
+      TILESET_NAME,
+      TextureKey.levelTiles,
+      TILE_WIDTH,
+      TILE_HEIGHT,
+      0,
+      0,
+      1,
+    );
+    if (!tileset) throw new Error(`Texture ${TextureKey.levelTiles} is missing`);
+    const platforms = map.createLayer(0, tileset, 0, 0);
     if (!(platforms instanceof Phaser.Tilemaps.TilemapLayer)) {
-      throw new Error(`Layer ${PLATFORM_LAYER} is missing from ${level.tilemapKey}`);
+      throw new Error('The level tile layer could not be created');
     }
     platforms.setDepth(Depth.platforms);
 
@@ -104,9 +119,15 @@ export class LevelScene extends Phaser.Scene {
       nicknames,
       input: new KeyboardInput(this),
       // Seq numbering carries on from the previous level: the server rejects anything not above it.
-      predictor: new LocalPlayerPredictor(playerId, levelIndex, me, network.lastInputSeq + 1),
+      predictor: new LocalPlayerPredictor(
+        playerId,
+        levelIndex,
+        level,
+        me,
+        network.lastInputSeq + 1,
+      ),
       buffer,
-      ownBullets: new OwnBulletTracker(playerId, levelIndex),
+      ownBullets: new OwnBulletTracker(playerId, levelIndex, level),
       remoteShots: new RemoteShotTracker(playerId, levelIndex),
       localView: new PlayerView(
         this,

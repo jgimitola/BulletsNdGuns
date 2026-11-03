@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   NEUTRAL_INPUT,
   createWorld,
-  getLevel,
+  CLASSIC_PLAYLIST,
   stepPlayer,
   stepWorld,
   toSnapshot,
@@ -13,16 +13,16 @@ import {
 } from '@bng/shared';
 import { LocalPlayerPredictor } from '../src/net/prediction.ts';
 
-const level = getLevel(0);
+const level = CLASSIC_PLAYLIST[0]!;
 const keys = (o: Partial<InputKeys> = {}): InputKeys => ({
   ...NEUTRAL_INPUT,
   ...o,
 });
 
 function setup() {
-  const world = createWorld([{ id: 'me', side: 'left' }]);
+  const world = createWorld([{ id: 'me', side: 'left' }], level);
   const first = world.players[0] as PlayerState;
-  return { world, predictor: new LocalPlayerPredictor('me', 0, first), first };
+  return { world, predictor: new LocalPlayerPredictor('me', 0, level, first), first };
 }
 
 function snap(player: PlayerState, ackSeq: number, levelIndex = 0): Snapshot {
@@ -47,10 +47,10 @@ describe('LocalPlayerPredictor', () => {
 
   it('reconcile returns 0 when the server agrees', () => {
     const { predictor } = setup();
-    let world = createWorld([{ id: 'me', side: 'left' }]);
+    let world = createWorld([{ id: 'me', side: 'left' }], level);
     for (let i = 0; i < 10; i++) {
       const { frame } = predictor.applyInput(keys({ right: true }));
-      world = stepWorld(world, new Map([['me', frame]])).world;
+      world = stepWorld(world, new Map([['me', frame]]), level).world;
     }
     expect(predictor.reconcile(toSnapshot(world, 10))).toBe(0);
   });
@@ -75,14 +75,14 @@ describe('LocalPlayerPredictor', () => {
   });
 
   it('tags frames with its level', () => {
-    const level1 = createWorld([{ id: 'me', side: 'left' }]);
-    const predictor = new LocalPlayerPredictor('me', 2, level1.players[0] as PlayerState);
+    const level1 = createWorld([{ id: 'me', side: 'left' }], level);
+    const predictor = new LocalPlayerPredictor('me', 2, level, level1.players[0] as PlayerState);
     expect(predictor.applyInput(keys()).frame.level).toBe(2);
   });
 
   it('continues numbering from firstSeq', () => {
     const { first } = setup();
-    const predictor = new LocalPlayerPredictor('me', 0, first, 500);
+    const predictor = new LocalPlayerPredictor('me', 0, level, first, 500);
     expect(predictor.applyInput(keys()).frame.seq).toBe(500);
     expect(predictor.applyInput(keys()).frame.seq).toBe(501);
     // An older ack (from the previous level) must not drop the new frames.
@@ -92,10 +92,10 @@ describe('LocalPlayerPredictor', () => {
 
   it('matches server when server applies same inputs', () => {
     const { predictor } = setup();
-    let world = createWorld([{ id: 'me', side: 'left' }]);
+    let world = createWorld([{ id: 'me', side: 'left' }], level);
     for (let i = 0; i < 30; i++) {
       const { frame } = predictor.applyInput(keys({ right: true }));
-      world = stepWorld(world, new Map([['me', frame]])).world;
+      world = stepWorld(world, new Map([['me', frame]]), level).world;
     }
     predictor.reconcile(toSnapshot(world, 30));
     expect(predictor.state).toEqual(world.players[0]);

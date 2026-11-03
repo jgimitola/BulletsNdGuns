@@ -1,5 +1,4 @@
 import {
-  getLevel,
   stepBullet,
   type BulletState,
   type Level,
@@ -14,10 +13,10 @@ export class OwnBulletTracker {
   private readonly level: Level;
   private list: BulletState[] = [];
 
-  constructor(playerId: PlayerId, levelIndex: number) {
+  constructor(playerId: PlayerId, levelIndex: number, level: Level) {
     this.playerId = playerId;
     this.levelIndex = levelIndex;
-    this.level = getLevel(levelIndex);
+    this.level = level;
   }
 
   get bullets(): readonly BulletState[] {

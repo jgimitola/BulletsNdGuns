@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   createPlayer,
-  getLevel,
+  CLASSIC_PLAYLIST,
   type BulletState,
   type PlayerState,
   type Snapshot,
 } from '@bng/shared';
 import { SnapshotBuffer } from '../src/net/snapshot-buffer.ts';
 
-const base = createPlayer('a', 'left', getLevel(0));
+const base = createPlayer('a', 'left', CLASSIC_PLAYLIST[0]!);
 const player = (o: Partial<PlayerState> = {}): PlayerState => ({ ...base, ...o });
 const bullet = (id: string, x: number): BulletState => ({ id, ownerId: 'a', x, y: 5, vx: 1 });
 function snap(

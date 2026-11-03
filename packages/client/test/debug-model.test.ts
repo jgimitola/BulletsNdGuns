@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   NEUTRAL_INPUT,
   createPlayer,
-  getLevel,
+  CLASSIC_PLAYLIST,
   type InputFrame,
   type PlayerState,
   type StepTrace,
@@ -28,7 +28,7 @@ import {
 } from '../src/debug/trail.ts';
 
 const player = (o: Partial<PlayerState> = {}): PlayerState => ({
-  ...createPlayer('me', 'left', getLevel(0)),
+  ...createPlayer('me', 'left', CLASSIC_PLAYLIST[0]!),
   ...o,
 });
 

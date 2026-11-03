@@ -1,4 +1,4 @@
-import { LEVELS, PLAYER_FRAME_HEIGHT, PLAYER_FRAME_WIDTH } from '@bng/shared';
+import { PLAYER_FRAME_HEIGHT, PLAYER_FRAME_WIDTH } from '@bng/shared';
 import type Phaser from 'phaser';
 
 export const TextureKey = {
@@ -32,9 +32,4 @@ export function loadAllAssets(load: Phaser.Loader.LoaderPlugin): void {
   load.image(TextureKey.coin, 'assets/textures/coin.png');
   load.image(TextureKey.portal, 'assets/textures/portal.png');
   load.image(TextureKey.levelTiles, 'assets/textures/level-tiles.png');
-
-  // Tilemaps come from the shared package (the server reads the same data); Phaser accepts a parsed object as the url.
-  for (const level of LEVELS) {
-    load.tilemapTiledJSON(level.tilemapKey, level.map);
-  }
 }

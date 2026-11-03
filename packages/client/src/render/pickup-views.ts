@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import { PICKUP_DRAW_OFFSET_Y, type LevelConfig, type Pickup } from '@bng/shared';
+import { PICKUP_DRAW_OFFSET_Y, type Level, type Pickup } from '@bng/shared';
 import { TextureKey } from '../assets/manifest.ts';
 
 function createImages(
@@ -39,7 +39,7 @@ export class PickupViews {
   private readonly ammo: Map<number, Phaser.GameObjects.Image>;
   private readonly coins: Map<number, Phaser.GameObjects.Image>;
 
-  constructor(scene: Phaser.Scene, level: LevelConfig, depth: number) {
+  constructor(scene: Phaser.Scene, level: Level, depth: number) {
     // Ammo boxes first, as in the original, so coins draw on top of them.
     this.ammo = createImages(scene, level.ammoPickups, TextureKey.ammoPickup, depth);
     this.coins = createImages(scene, level.coins, TextureKey.coin, depth);
