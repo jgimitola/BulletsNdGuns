@@ -1,4 +1,5 @@
-import { expect, test } from 'vitest';
+import { describe, expect, test } from 'vitest';
+import { GRAVITY_Y, JUMP_VELOCITY } from '../src/constants.ts';
 import type { Rect } from '../src/geometry.ts';
 import { getLevel } from '../src/levels/level-registry.ts';
 import { NEUTRAL_INPUT, type InputFrame, type InputKeys } from '../src/protocol/input.ts';
@@ -234,7 +235,10 @@ test('turning at a ledge edge does not move the hitbox or drop the player', () =
 
   const turnRight = stepPlayer(p, input({ right: true }), L1).player;
   expect(turnRight.facing).toBe('right');
-  expect(bodyBox(turnRight).x - box0.x).toBeCloseTo((MOVEMENT.runSpeed / MOVEMENT.groundAccelTicks) * DT, 9);
+  expect(bodyBox(turnRight).x - box0.x).toBeCloseTo(
+    (MOVEMENT.runSpeed / MOVEMENT.groundAccelTicks) * DT,
+    9,
+  );
   expect(turnRight.onFloor).toBe(true);
 
   const turnLeft = stepPlayer(turnRight, input({ left: true }), L1).player;
@@ -484,4 +488,43 @@ test('stepPlayer is pure and deterministic', () => {
   expect(p).toEqual(snapshot);
   expect(a).toEqual(b);
   expect(a.player).not.toBe(p);
+});
+
+describe('step trace', () => {
+  const GRAVITY_TICK = GRAVITY_Y / 60;
+
+  test('standing reports the floor only, and gravity the floor then cancels', () => {
+    const r = stepPlayer(standingAt(400, FLOOR_Y, 'right'), input(), L1);
+    expect(r.trace.contacts).toEqual({ left: false, right: false, up: false, down: true });
+    expect(r.trace.accel.x).toBe(0);
+    expect(r.trace.accel.y).toBeCloseTo(GRAVITY_TICK, 9);
+  });
+
+  test('walking into the left wall reports left', () => {
+    const results = run(standingAt(LEFT_WALL_X, FLOOR_Y, 'left'), 2, { left: true });
+    expect(results.at(-1)!.trace.contacts.left).toBe(true);
+  });
+
+  test('a ground start reports run acceleration', () => {
+    const r = stepPlayer(standingAt(400, FLOOR_Y, 'right'), input({ right: true }), L1);
+    expect(r.trace.accel.x).toBeCloseTo(MOVEMENT.runSpeed / MOVEMENT.groundAccelTicks, 9);
+  });
+
+  test('a jump tick reports the impulse plus gravity', () => {
+    const start = standingAt(400, FLOOR_Y, 'right');
+    const r = stepPlayer(start, input({ jumpPressed: true }), L1);
+    expect(r.trace.accel.y).toBeCloseTo(JUMP_VELOCITY + GRAVITY_TICK - start.vy, 9);
+  });
+
+  test('an airborne tick reports one tick of gravity and no contacts', () => {
+    const start = standingAt(400, FLOOR_Y, 'right');
+    const airborne = stepPlayer(start, input({ jumpPressed: true }), L1).player;
+    const r = stepPlayer(airborne, input(), L1);
+    expect(r.trace.accel.y).toBeCloseTo(GRAVITY_TICK, 9);
+    expect(r.trace.contacts).toEqual({ left: false, right: false, up: false, down: false });
+  });
+
+  test('a plain step reports no assist', () => {
+    expect(stepPlayer(standingAt(400, FLOOR_Y, 'right'), input(), L1).trace.assist).toBeNull();
+  });
 });

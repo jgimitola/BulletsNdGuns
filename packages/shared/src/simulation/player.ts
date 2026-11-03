@@ -11,7 +11,7 @@ import {
 } from '../constants.ts';
 import type { Vec2 } from '../geometry.ts';
 import type { Level, Side } from '../levels/level-registry.ts';
-import { moveBox } from '../physics/tile-collision.ts';
+import { moveBox, type Contacts, type CornerAssistEvent } from '../physics/tile-collision.ts';
 import type { InputFrame } from '../protocol/input.ts';
 import { nextHorizontalVelocity, type Direction } from './horizontal-velocity.ts';
 import { MOVEMENT } from './movement-tuning.ts';
@@ -54,10 +54,19 @@ export interface BulletState {
   vx: number;
 }
 
+/** What a step did beyond its new state; for the debug overlay, never fed back into the state. */
+export interface StepTrace {
+  contacts: Contacts;
+  /** Velocity going into the move minus the velocity the tick started with: gravity, run accel, braking, jump. */
+  accel: Vec2;
+  assist: CornerAssistEvent | null;
+}
+
 export interface PlayerStepResult {
   player: PlayerState;
   bullet: BulletState | null;
   jumped: boolean;
+  trace: StepTrace;
 }
 
 /** Players spawn facing the centre of the level. */
@@ -200,16 +209,23 @@ function shoot(
  * Sweeps the hitbox through the level with this tick's velocities. Position moves by the box's
  * displacement rather than being rebuilt from the box, so a blocked axis keeps its exact value.
  */
-function move(p: PlayerState, level: Level): PlayerState {
+function move(
+  p: PlayerState,
+  level: Level,
+): { player: PlayerState; contacts: Contacts; assist: CornerAssistEvent | null } {
   const box = bodyBox(p);
   const r = moveBox(box, p.vx, p.vy, TICK_SECONDS, level.grid, MOVEMENT);
   return {
-    ...p,
-    x: p.x + (r.box.x - box.x),
-    y: p.y + (r.box.y - box.y),
-    vx: zeroed(r.vx),
-    vy: zeroed(r.vy),
-    onFloor: r.contacts.down,
+    player: {
+      ...p,
+      x: p.x + (r.box.x - box.x),
+      y: p.y + (r.box.y - box.y),
+      vx: zeroed(r.vx),
+      vy: zeroed(r.vy),
+      onFloor: r.contacts.down,
+    },
+    contacts: r.contacts,
+    assist: r.assist,
   };
 }
 
@@ -269,9 +285,12 @@ export function stepPlayer(player: PlayerState, input: InputFrame, level: Level)
   //    gives the original's 87.5 px apex. It also runs for a resting player, whose downward sweep
   //    every tick is what reports contacts.down; without it onFloor would flicker and jumps be lost.
   next.vy += GRAVITY_Y * TICK_SECONDS;
+  // Taken before the move so a collision zeroing an axis reads as a contact, not as acceleration.
+  const accel = { x: next.vx - player.vx, y: next.vy - player.vy };
 
   // 8. Move and collide with this tick's velocities; the down contact becomes onFloor.
-  next = move(next, level);
+  const moved = move(next, level);
+  next = moved.player;
 
   // 9. Ground bookkeeping: coyote starts or ends depending on what the move found.
   next = coyoteAfterMove(player, next, jumped);
@@ -279,5 +298,10 @@ export function stepPlayer(player: PlayerState, input: InputFrame, level: Level)
   // 10. Animation, from the finished state so it matches what the player now does.
   next.anim = animationFor(next);
 
-  return { player: next, bullet: shot.bullet, jumped };
+  return {
+    player: next,
+    bullet: shot.bullet,
+    jumped,
+    trace: { contacts: moved.contacts, accel, assist: moved.assist },
+  };
 }
