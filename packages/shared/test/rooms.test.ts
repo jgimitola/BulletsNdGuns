@@ -5,6 +5,8 @@ import {
   parseNickname,
   parseRoomName,
   nicknameSchema,
+  nicknameKey,
+  isReservedNickname,
 } from '../src/protocol/rooms.ts';
 
 describe('parseNickname', () => {
@@ -88,5 +90,24 @@ describe('nicknameSchema', () => {
   test('counts code points, not UTF-16 units', () => {
     expect(nicknameSchema.safeParse('🐢'.repeat(12)).success).toBe(true);
     expect(nicknameSchema.safeParse('🐢'.repeat(13)).success).toBe(false);
+  });
+});
+
+describe('nicknameKey', () => {
+  test('ignores case, surrounding spaces and width', () => {
+    expect(nicknameKey(' Ana ')).toBe('ana');
+    expect(nicknameKey('ANA')).toBe(nicknameKey('ana'));
+    expect(nicknameKey('Ａｎａ')).toBe('ana');
+  });
+  test('keeps letters outside ASCII', () => {
+    expect(nicknameKey('Ñandú')).toBe('ñandú');
+  });
+});
+
+describe('isReservedNickname', () => {
+  test('reserves BulletsNdGuns in any case or width', () => {
+    expect(isReservedNickname('bulletsndguns')).toBe(true);
+    expect(isReservedNickname(' BULLETSNDGUNS ')).toBe(true);
+    expect(isReservedNickname('Bullets')).toBe(false);
   });
 });

@@ -75,6 +75,18 @@ export function parseNickname(raw: unknown): string | null {
   return parseWith(nicknameSchema, raw);
 }
 
+/** No guest or account may take it: built-in levels show it as their author. */
+export const RESERVED_NICKNAME = 'BulletsNdGuns';
+
+/** Two nicknames with the same key are the same name: case, width and outer spaces don't count. */
+export function nicknameKey(nickname: string): string {
+  return nickname.trim().normalize('NFKC').toLowerCase();
+}
+
+export function isReservedNickname(nickname: string): boolean {
+  return nicknameKey(nickname) === nicknameKey(RESERVED_NICKNAME);
+}
+
 export function parseRoomName(raw: unknown): string | null {
   return parseWith(roomNameSchema, raw);
 }
