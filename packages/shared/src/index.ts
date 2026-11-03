@@ -8,6 +8,8 @@ export * from './levels/classic-levels.ts';
 export * from './levels/level.ts';
 export * from './protocol/input.ts';
 export * from './protocol/messages.ts';
+export * from './protocol/labels.ts';
+export * from './protocol/levels.ts';
 export * from './protocol/rooms.ts';
 export * from './simulation/player-body.ts';
 export * from './simulation/player.ts';

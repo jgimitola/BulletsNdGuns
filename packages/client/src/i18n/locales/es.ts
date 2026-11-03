@@ -57,6 +57,7 @@ export const es = {
   'roomError.noResponse': 'El servidor no respondió. Inténtalo de nuevo.',
   'roomError.signInRequired': 'Inicia sesión para crear salas.',
   'roomError.noNickname': 'Elige un apodo antes de entrar a una sala.',
+  'roomError.levelUnavailable': 'Uno de los niveles ya no está disponible.',
   'signIn.title': 'Entrar',
   'signIn.email': 'Correo',
   'signIn.password': 'Contraseña',

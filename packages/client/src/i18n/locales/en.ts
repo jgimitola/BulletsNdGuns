@@ -60,6 +60,7 @@ export const en: Record<keyof typeof es, string> = {
   'roomError.noResponse': 'The server did not answer. Try again.',
   'roomError.signInRequired': 'Sign in to create rooms.',
   'roomError.noNickname': 'Choose a nickname before joining a room.',
+  'roomError.levelUnavailable': 'One of the levels is no longer available.',
   'signIn.title': 'Sign in',
   'signIn.email': 'Email',
   'signIn.password': 'Password',

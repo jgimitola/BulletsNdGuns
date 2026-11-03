@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import type { PlayerId } from '../simulation/player.ts';
 import { parseWith } from '../validation.ts';
+import { INVISIBLE, labelSchema } from './labels.ts';
+import { levelIdSchema, MAX_PLAYLIST_LENGTH, type LevelId } from './levels.ts';
 
 export const NICKNAME_MAX_LENGTH = 12;
 export const ROOM_NAME_MAX_LENGTH = 24;
@@ -40,7 +42,8 @@ export type RoomError =
   | 'alreadyInRoom'
   | 'tooManyRooms'
   | 'signInRequired'
-  | 'noNickname';
+  | 'noNickname'
+  | 'levelUnavailable';
 
 /** Why a guest could not claim a nickname. */
 export type NicknameError = 'invalid' | 'taken';
@@ -52,6 +55,8 @@ export type NicknameAck = { ok: true; nickname: string } | { ok: false; error: N
 /** The player's nickname is the one they claimed (guests) or their account's, never the request's. */
 export interface CreateRoomRequest {
   name: string;
+  /** The playlist, in order; the server plays its default playlist when absent. */
+  levelIds?: LevelId[];
 }
 
 export interface JoinRoomRequest {
@@ -62,40 +67,12 @@ export interface ClaimNicknameRequest {
   nickname: string;
 }
 
-// C0 and C1 control characters, which would render as nothing or break the layout.
-const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/;
-// Direction overrides and marks: they reorder how the rest of a name (or a whole row) is shown.
-const BIDI_CONTROLS = /[؜‎‏‪-‮⁦-⁩]/;
-// Zero-width and other characters that draw nothing (ZWJ inside emoji included).
-const INVISIBLE = /\p{Default_Ignorable_Code_Point}/gu;
-
-/**
- * Trimmed text of 1..maxLength characters, without control or direction characters, and with at
- * least one visible character.
- */
-function labelSchema(maxLength: number) {
-  return z
-    .string()
-    .trim()
-    .refine((text) => {
-      // Count code points so an emoji is one character, as the player sees it.
-      const length = [...text].length;
-      const visible = text.replace(INVISIBLE, '').replace(/\s/gu, '');
-      return (
-        length >= 1 &&
-        length <= maxLength &&
-        visible !== '' &&
-        !CONTROL_CHARS.test(text) &&
-        !BIDI_CONTROLS.test(text)
-      );
-    });
-}
-
 export const nicknameSchema = labelSchema(NICKNAME_MAX_LENGTH);
 export const roomNameSchema = labelSchema(ROOM_NAME_MAX_LENGTH);
 
 export const createRoomSchema = z.object({
   name: roomNameSchema,
+  levelIds: z.array(levelIdSchema).min(1).max(MAX_PLAYLIST_LENGTH).optional(),
 }) satisfies z.ZodType<CreateRoomRequest>;
 
 export const joinRoomSchema = z.object({
