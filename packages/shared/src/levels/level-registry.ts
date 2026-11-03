@@ -6,7 +6,9 @@ import level1Map from './maps/level-1.json' with { type: 'json' };
 import level2Map from './maps/level-2.json' with { type: 'json' };
 import level3Map from './maps/level-3.json' with { type: 'json' };
 
-export type Side = 'left' | 'right';
+import type { Side } from './level-data.ts';
+
+export type { Side };
 
 /** Raw pickup coordinates (top-left origin), from `coleccionables.json` on branch `archive/original`. */
 export interface Pickup {
