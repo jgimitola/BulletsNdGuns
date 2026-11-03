@@ -9,6 +9,7 @@ import { loadConfig, type ServerConfig } from './config.ts';
 import { openDatabase } from './db/database.ts';
 import { migrateGameTables } from './db/migrations.ts';
 import { createApp } from './http/create-app.ts';
+import { allowedOrigins, isAllowedOrigin } from './http/origins.ts';
 import { levelsRouter } from './http/levels-routes.ts';
 import { kyselyLevelStore } from './levels/kysely-level-store.ts';
 import { LevelService } from './levels/level-service.ts';
@@ -46,8 +47,11 @@ export async function startServer(
       levelsRouter: levelsRouter(levels, (headers) => auth.sessionAccount(headers)),
     }),
   );
+  const origins = allowedOrigins(config);
   const io: GameServer = new Server(httpServer, {
     maxHttpBufferSize: MAX_SOCKET_MESSAGE_BYTES,
+    // The handshake carries the session cookie: another site's page must not open a socket as the player.
+    allowRequest: (req, callback) => callback(null, isAllowedOrigin(req.headers.origin, origins)),
   });
   const transport = createSocketTransport(io);
   // Loops of open rooms only: a room drops its own when it closes.

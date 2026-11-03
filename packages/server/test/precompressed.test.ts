@@ -47,7 +47,12 @@ beforeAll(async () => {
   writeFileSync(join(dist, 'assets', 'style.css.gz'), gzipSync(STYLE));
   server = createServer(
     createApp(
-      { clientDist: dist, trustProxy: false },
+      {
+        clientDist: dist,
+        trustProxy: false,
+        authUrl: 'http://localhost:3000',
+        trustedOrigins: [],
+      },
       {
         listRooms: () => [],
         authHandler: (_req, res) => res.end(),

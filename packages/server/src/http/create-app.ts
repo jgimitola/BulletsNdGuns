@@ -2,7 +2,9 @@ import express, { type RequestHandler } from 'express';
 import type { RoomSummary } from '@bng/shared';
 import { CLIENT_IP_HEADER } from '../auth/auth.ts';
 import type { ServerConfig } from '../config.ts';
+import { allowedOrigins, isAllowedOrigin } from './origins.ts';
 import { precompressed } from './precompressed.ts';
+import { securityHeaders } from './security-headers.ts';
 
 /** Account requests carry a few short fields; anything bigger is refused before it is buffered. */
 const AUTH_BODY_LIMIT = '16kb';
@@ -25,12 +27,27 @@ const clientIp: RequestHandler = (req, _res, next) => {
   next();
 };
 
+/**
+ * Level writes act with the session cookie, so a page on another site must not be able to send
+ * them. better-auth checks its own endpoints; this covers ours.
+ */
+function sameOriginWrites(allowed: ReadonlySet<string>): RequestHandler {
+  return (req, res, next) => {
+    if (req.method === 'GET' || req.method === 'HEAD') return next();
+    if (isAllowedOrigin(req.headers.origin, allowed)) return next();
+    res.status(403).json({ error: 'forbidden' });
+  };
+}
+
 export function createApp(
-  config: Pick<ServerConfig, 'clientDist' | 'trustProxy'>,
+  config: Pick<ServerConfig, 'clientDist' | 'trustProxy' | 'authUrl' | 'trustedOrigins'>,
   deps: AppDeps,
 ): express.Express {
   const app = express();
+  // Names the framework to anyone probing for known holes; the game has no use for it.
+  app.disable('x-powered-by');
   app.set('trust proxy', config.trustProxy);
+  app.use(securityHeaders(config.authUrl));
   app.get('/healthz', (_req, res) => {
     res.status(200).json({ status: 'ok' });
   });
@@ -45,7 +62,7 @@ export function createApp(
     clientIp,
     deps.authHandler,
   );
-  app.use('/api/levels', deps.levelsRouter);
+  app.use('/api/levels', sameOriginWrites(allowedOrigins(config)), deps.levelsRouter);
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'notFound' });
   });

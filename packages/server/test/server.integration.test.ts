@@ -272,6 +272,64 @@ async function createLevel(cookie: string, data: LevelData = levelData): Promise
 /** Data that differs from the classics, to tell which copy a room plays. */
 const otherData: LevelData = { ...levelData, coins: [] };
 
+describe('cross-site protection', () => {
+  const EVIL = 'https://evil.example';
+
+  test('level writes from another site are refused', async () => {
+    const ana = await register('Ana');
+    const res = await fetch(`${url()}/api/levels`, {
+      method: 'POST',
+      headers: { cookie: ana, origin: EVIL, 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Torre', data: levelData }),
+    });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: 'forbidden' });
+  });
+
+  test('level writes from a trusted origin go through', async () => {
+    const ana = await register('Ana');
+    const res = await fetch(`${url()}/api/levels`, {
+      method: 'POST',
+      // The test config trusts the Vite dev server (its public URL keeps the default port, not ours).
+      headers: { cookie: ana, origin: 'http://localhost:5173', 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Torre', data: levelData }),
+    });
+    expect(res.status).toBe(201);
+  });
+
+  test('a socket opened by another site is refused', async () => {
+    const c: Client = connect(url(), {
+      transports: ['websocket'],
+      forceNew: true,
+      extraHeaders: { origin: EVIL },
+    });
+    clients.push(c);
+    await new Promise<void>((resolve) => c.once('connect_error', () => resolve()));
+    expect(c.connected).toBe(false);
+  });
+
+  test('a socket from a trusted origin connects', async () => {
+    const c: Client = connect(url(), {
+      transports: ['websocket'],
+      forceNew: true,
+      extraHeaders: { origin: 'http://localhost:5173' },
+    });
+    clients.push(c);
+    await connected(c);
+    expect(c.connected).toBe(true);
+  });
+
+  test('responses carry the browser protections', async () => {
+    const res = await fetch(`${url()}/api/rooms`);
+    expect(res.headers.get('content-security-policy')).toMatch(/frame-ancestors 'none'/);
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(res.headers.get('x-frame-options')).toBe('DENY');
+    expect(res.headers.get('x-powered-by')).toBeNull();
+    // The test server runs on plain HTTP.
+    expect(res.headers.get('strict-transport-security')).toBeNull();
+  });
+});
+
 describe('rooms with playlists', () => {
   test('without level ids, a room plays the three classics', async () => {
     const { client } = await signedIn('Ana');
