@@ -64,8 +64,15 @@ export interface ClaimNicknameRequest {
 
 // C0 and C1 control characters, which would render as nothing or break the layout.
 const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/;
+// Direction overrides and marks: they reorder how the rest of a name (or a whole row) is shown.
+const BIDI_CONTROLS = /[؜‎‏‪-‮⁦-⁩]/;
+// Zero-width and other characters that draw nothing (ZWJ inside emoji included).
+const INVISIBLE = /\p{Default_Ignorable_Code_Point}/gu;
 
-/** Trimmed text of 1..maxLength characters without control characters. */
+/**
+ * Trimmed text of 1..maxLength characters, without control or direction characters, and with at
+ * least one visible character.
+ */
 function labelSchema(maxLength: number) {
   return z
     .string()
@@ -73,7 +80,14 @@ function labelSchema(maxLength: number) {
     .refine((text) => {
       // Count code points so an emoji is one character, as the player sees it.
       const length = [...text].length;
-      return length >= 1 && length <= maxLength && !CONTROL_CHARS.test(text);
+      const visible = text.replace(INVISIBLE, '').replace(/\s/gu, '');
+      return (
+        length >= 1 &&
+        length <= maxLength &&
+        visible !== '' &&
+        !CONTROL_CHARS.test(text) &&
+        !BIDI_CONTROLS.test(text)
+      );
     });
 }
 
@@ -99,9 +113,13 @@ export function parseNickname(raw: unknown): string | null {
 /** No guest or account may take it: built-in levels show it as their author. */
 export const RESERVED_NICKNAME = 'BulletsNdGuns';
 
-/** Two nicknames with the same key are the same name: case, width and outer spaces don't count. */
+/**
+ * Two nicknames with the same key are the same name: case, width, invisible characters and outer
+ * spaces don't count. Idempotent (better-auth applies it twice): NFKC first, since it can produce
+ * spaces (`´` becomes a space and a combining accent) that trimming must then see.
+ */
 export function nicknameKey(nickname: string): string {
-  return nickname.trim().normalize('NFKC').toLowerCase();
+  return nickname.normalize('NFKC').replace(INVISIBLE, '').trim().toLowerCase().normalize('NFKC');
 }
 
 export function isReservedNickname(nickname: string): boolean {

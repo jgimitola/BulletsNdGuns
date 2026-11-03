@@ -22,7 +22,12 @@ let timers: ReturnType<typeof setInterval>[] = [];
 const url = (): string => `http://localhost:${server.port}`;
 
 function testConfig(): ServerConfig {
-  return { ...loadConfig({}), port: 0, clientDist: 'does-not-exist', databasePath: ':memory:' };
+  return {
+    ...loadConfig({ NODE_ENV: 'development' }),
+    port: 0,
+    clientDist: 'does-not-exist',
+    databasePath: ':memory:',
+  };
 }
 
 /** Registers an account over HTTP; returns its session cookie. */
@@ -127,6 +132,31 @@ describe('accounts over HTTP', () => {
     const res = await fetch(`${url()}/api/nope`);
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: 'notFound' });
+  });
+
+  test.each([
+    ['GET', '/verify-email?token=x'],
+    ['POST', '/send-verification-email'],
+    ['POST', '/change-email'],
+    ['POST', '/request-password-reset'],
+    ['POST', '/reset-password'],
+    ['POST', '/delete-user'],
+  ])('better-auth endpoints the game does not use are off: %s %s', async (method, path) => {
+    const res = await fetch(`${url()}/api/auth${path}`, {
+      method,
+      headers: method === 'POST' ? { 'content-type': 'application/json' } : {},
+      body: method === 'POST' ? '{}' : undefined,
+    });
+    expect(res.status).toBe(404);
+  });
+
+  test('an oversized auth request is refused before it is read', async () => {
+    const res = await fetch(`${url()}/api/auth/sign-up/email`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'a@b.co', password: 'x'.repeat(100_000), name: 'A' }),
+    });
+    expect(res.status).toBe(413);
   });
 });
 

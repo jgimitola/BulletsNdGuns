@@ -106,3 +106,32 @@ describe('isReservedNickname', () => {
     expect(isReservedNickname('Bullets')).toBe(false);
   });
 });
+
+describe('invisible characters', () => {
+  test('do not make a different nickname', () => {
+    expect(nicknameKey('An​a')).toBe('ana');
+    expect(nicknameKey('⁠Ana­')).toBe('ana');
+    expect(nicknameKey('A️na')).toBe('ana');
+  });
+
+  test('a nickname with nothing visible is refused', () => {
+    expect(parseNickname('​')).toBeNull();
+    expect(parseNickname('ㅤㅤ')).toBeNull();
+    expect(parseRoomName('⁠')).toBeNull();
+  });
+
+  test('bidi controls are refused', () => {
+    expect(parseNickname('Ana‮')).toBeNull();
+    expect(parseNickname('⁦Ana')).toBeNull();
+  });
+
+  test('emoji joined with ZWJ still work', () => {
+    expect(parseNickname('👨‍👩‍👧')).toBe('👨‍👩‍👧');
+  });
+});
+
+test('nicknameKey is idempotent', () => {
+  for (const name of ['´Ana', ' Ａｎａ ', 'Ñandú', 'ﬁre', 'Ⅻ', 'An​a', '¨x']) {
+    expect(nicknameKey(nicknameKey(name))).toBe(nicknameKey(name));
+  }
+});

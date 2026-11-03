@@ -12,6 +12,22 @@ export interface AuthEvents {
   nicknameChanged(accountId: string, nickname: string): void;
 }
 
+/** Set by the HTTP app from the client's address; better-auth's rate limits count by it. */
+export const CLIENT_IP_HEADER = 'x-bng-client-ip';
+
+/**
+ * better-auth endpoints the game never calls. Email verification, email change and password reset
+ * are out of scope, and an enabled endpoint is attack surface even when no screen links to it.
+ */
+const DISABLED_PATHS = [
+  '/verify-email',
+  '/send-verification-email',
+  '/change-email',
+  '/request-password-reset',
+  '/reset-password',
+  '/delete-user',
+];
+
 /** Who a request or socket belongs to, from its session cookie. */
 export interface SessionAccount {
   id: string;
@@ -38,6 +54,9 @@ function authOptions(db: Database, config: ServerConfig, events: AuthEvents) {
     baseURL: config.authUrl,
     trustedOrigins: config.trustedOrigins,
     telemetry: { enabled: false },
+    disabledPaths: DISABLED_PATHS,
+    rateLimit: { enabled: config.authRateLimit },
+    advanced: { ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] } },
     emailAndPassword: { enabled: true, requireEmailVerification: false },
     plugins: [
       username({

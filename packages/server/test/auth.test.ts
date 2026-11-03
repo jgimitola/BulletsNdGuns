@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { kyselyAccountDirectory } from '../src/auth/account-directory.ts';
-import { createAuth, type Auth } from '../src/auth/auth.ts';
+import { CLIENT_IP_HEADER, createAuth, type Auth } from '../src/auth/auth.ts';
 import { loadConfig } from '../src/config.ts';
 import { openDatabase, type Database } from '../src/db/database.ts';
 
@@ -11,7 +11,8 @@ const nicknameChanged = vi.fn();
 beforeEach(async () => {
   nicknameChanged.mockClear();
   db = openDatabase(':memory:');
-  auth = await createAuth(db, { ...loadConfig({}), databasePath: ':memory:' }, { nicknameChanged });
+  const config = { ...loadConfig({ NODE_ENV: 'development' }), databasePath: ':memory:' };
+  auth = await createAuth(db, config, { nicknameChanged });
 });
 
 afterEach(async () => {
@@ -121,5 +122,40 @@ describe('profile', () => {
       body: { email: 'a@b.co', password: 'password456' },
     });
     expect(signedIn.user.email).toBe('a@b.co');
+  });
+});
+
+describe('rate limits', () => {
+  test('count sign-in attempts per client address, from the header the app sets', async () => {
+    const config = {
+      ...loadConfig({ NODE_ENV: 'development' }),
+      databasePath: ':memory:',
+      authRateLimit: true,
+    };
+    const limited = await createAuth(db, config, { nicknameChanged });
+    const attempt = (ip: string) =>
+      limited.handler.handler(
+        new Request(`${config.authUrl}/api/auth/sign-in/email`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', [CLIENT_IP_HEADER]: ip },
+          body: JSON.stringify({ email: 'a@b.co', password: 'wrong-password' }),
+        }),
+      );
+    const statuses: number[] = [];
+    for (let i = 0; i < 4; i++) statuses.push((await attempt('10.0.0.1')).status);
+    expect(statuses.at(-1)).toBe(429);
+    // Another player is not locked out by the first one's attempts.
+    expect((await attempt('10.0.0.2')).status).not.toBe(429);
+  });
+});
+
+describe('look-alike nicknames', () => {
+  test('an invisible character does not make a new nickname', async () => {
+    await register('a@b.co', 'Ana');
+    expect(await refusal(register('c@d.co', 'An​a'))).toBe('USERNAME_IS_ALREADY_TAKEN');
+  });
+
+  test('a name with a combining accent first can register', async () => {
+    expect(await refusal(register('a@b.co', '´Ana'))).toBe('accepted');
   });
 });
