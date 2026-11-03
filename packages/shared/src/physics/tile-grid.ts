@@ -41,6 +41,26 @@ export function buildTileGrid(map: TiledMap, layerName: string): TileGrid {
   };
 }
 
+/** The collision grid of a level's tiles (row-major ids): every non-empty tile is solid. */
+export function buildTileGridFromTiles(
+  tiles: readonly number[],
+  cols: number,
+  rows: number,
+  tileSize: number,
+): TileGrid {
+  const isSolid = (col: number, row: number): boolean =>
+    col >= 0 && col < cols && row >= 0 && row < rows && tiles[row * cols + col] !== 0;
+
+  return {
+    cols,
+    rows,
+    tileWidth: tileSize,
+    tileHeight: tileSize,
+    isSolid,
+    tile: (col, row) => (isSolid(col, row) ? { col, row } : null),
+  };
+}
+
 /**
  * GetTilesWithinWorldXY for a layer at (0, 0) with scale 1: start columns/rows are floored,
  * end columns/rows are ceiled, the range is clipped to the map, and tiles are returned in

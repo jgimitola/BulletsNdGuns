@@ -4,6 +4,7 @@ export * from './physics/tiled.ts';
 export * from './physics/tile-grid.ts';
 export * from './physics/tile-collision.ts';
 export * from './levels/level-data.ts';
+export * from './levels/classic-levels.ts';
 export * from './levels/level-registry.ts';
 export * from './protocol/input.ts';
 export * from './protocol/messages.ts';
