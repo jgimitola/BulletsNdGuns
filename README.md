@@ -21,6 +21,27 @@ Originally a university project (Data Structures course) by Jesús Imitola, Sant
 | `npm run typecheck` | `tsc --noEmit` in every package                                   |
 | `npm run format`    | Prettier                                                          |
 
+### Debug overlay
+
+`npm run dev` can draw the simulation over the game. Set `VITE_DEBUG` to a comma-separated list of layers, or `all`:
+
+| Layer      | Shows                                                                                        |
+| ---------- | -------------------------------------------------------------------------------------------- |
+| `hitboxes` | Player hitboxes, sprite frames, centres, `x, y`, contact sides, bullet/pickup/portal rects  |
+| `tiles`    | An outline on every solid tile                                                               |
+| `ghost`    | Where the latest server snapshot has your player                                             |
+| `trail`    | Your last second of positions: green on the floor, orange in coyote time, blue in the air   |
+| `forces`   | Velocity and this tick's acceleration as arrows; markers where a corner assist fired         |
+| `timers`   | Coyote and jump-buffer bars above your player                                                |
+| `panel`    | A readout of position, velocity, contacts, timers, input and netcode                         |
+
+```sh
+$env:VITE_DEBUG='all'; npm run dev          # PowerShell
+VITE_DEBUG=hitboxes,panel npm run dev       # bash
+```
+
+Or put `VITE_DEBUG=...` in `packages/client/.env.local` (git-ignored). The panel drags by its title bar and collapses when the title is clicked. Production builds never include the overlay.
+
 Production: `npm run build && npm start`. Environment: `PORT` (default 3000), `CLIENT_DIST` (default `packages/client/dist`). `GET /healthz` returns `{"status":"ok"}`.
 
 The client build is split so the first screen only needs our entry code, React and a small vendor chunk. Phaser and the scenes (`src/game.ts`) start downloading at page load but are only booted once the socket connects, and the room list (with TanStack Query) is fetched when the menu shows. The build also writes `.br` and `.gz` copies of text files; the server sends those to browsers that accept them and falls back to the original file otherwise.

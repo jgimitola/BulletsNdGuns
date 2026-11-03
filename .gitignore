@@ -3,3 +3,4 @@ dist/
 coverage/
 .playwright-mcp/
 .superpowers/
+.env*.local
