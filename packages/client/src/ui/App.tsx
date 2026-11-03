@@ -5,7 +5,7 @@ import { HudScreen } from './screens/HudScreen.tsx';
 import { LoadingScreen } from './screens/LoadingScreen.tsx';
 import { LobbyScreen } from './screens/LobbyScreen.tsx';
 import { MenuScreen } from './screens/MenuScreen.tsx';
-import { LazyMyLevelsScreen, LazyRoomsScreen } from './screens/lazy-screens.ts';
+import { LazyEditorScreen, LazyMyLevelsScreen, LazyRoomsScreen } from './screens/lazy-screens.ts';
 import { NicknameRevokedDialog } from './dialogs/NicknameRevokedDialog.tsx';
 import { PingIndicator } from './PingIndicator.tsx';
 import type { Screen } from './store.ts';
@@ -58,6 +58,11 @@ function CurrentScreen({ screen }: { screen: Screen }) {
         </Suspense>
       );
     case 'editor':
+      return (
+        <Suspense fallback={null}>
+          <LazyEditorScreen />
+        </Suspense>
+      );
     case 'editorTest':
       return null;
   }

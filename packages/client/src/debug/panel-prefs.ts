@@ -31,9 +31,23 @@ export function loadPanelPrefs(
   fallback: PanelPrefs,
   bounds: { width: number; height: number },
 ): PanelPrefs {
+  return loadPrefsAt(STORAGE_KEY, storage, fallback, bounds);
+}
+
+export function savePanelPrefs(storage: Pick<Storage, 'setItem'>, prefs: PanelPrefs): void {
+  storage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+}
+
+/** The same load for any floating panel that keeps its place under its own storage key. */
+export function loadPrefsAt(
+  key: string,
+  storage: Pick<Storage, 'getItem'>,
+  fallback: PanelPrefs,
+  bounds: { width: number; height: number },
+): PanelPrefs {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(storage.getItem(STORAGE_KEY) ?? 'null');
+    parsed = JSON.parse(storage.getItem(key) ?? 'null');
   } catch {
     return fallback;
   }
@@ -43,10 +57,6 @@ export function loadPanelPrefs(
     y: clamp(parsed.y, 0, bounds.height - 1),
     collapsed: parsed.collapsed,
   };
-}
-
-export function savePanelPrefs(storage: Pick<Storage, 'setItem'>, prefs: PanelPrefs): void {
-  storage.setItem(STORAGE_KEY, JSON.stringify(prefs));
 }
 
 /** Movement up to this many px between press and release still counts as a click, not a drag. */

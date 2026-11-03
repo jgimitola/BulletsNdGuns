@@ -16,3 +16,8 @@ export const loadMyLevelsScreen = () => import('./MyLevelsScreen.tsx');
 export const LazyMyLevelsScreen = lazy(() =>
   loadMyLevelsScreen().then((m) => ({ default: m.MyLevelsScreenWithQuery })),
 );
+
+/** The editor's toolbar and dialogs, only for signed-in players who open it. */
+export const LazyEditorScreen = lazy(() =>
+  import('../editor/EditorScreen.tsx').then((m) => ({ default: m.EditorScreen })),
+);

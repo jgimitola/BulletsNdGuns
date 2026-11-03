@@ -1045,3 +1045,183 @@ body {
   padding: calc(8 * var(--px)) calc(24 * var(--px));
   font-size: calc(18 * var(--px));
 }
+
+/* Level editor */
+
+/* The screen lets the canvas take every click; only the toolbar is interactive. */
+.editor-screen {
+  display: block;
+}
+
+.editor-toolbar {
+  position: absolute;
+  box-sizing: border-box;
+  width: calc(292 * var(--px));
+  padding: calc(6 * var(--px));
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--px));
+  font-size: calc(14 * var(--px));
+  box-shadow: calc(4 * var(--px)) calc(4 * var(--px)) 0 #000;
+}
+
+.editor-toolbar__title {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--px));
+  padding: calc(2 * var(--px)) calc(4 * var(--px));
+  background: var(--navy);
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+}
+
+.editor-toolbar__name {
+  overflow: hidden;
+  color: var(--yellow);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.editor-toolbar__state {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--px));
+  font-size: calc(12 * var(--px));
+  color: #c8cbe6;
+}
+
+.editor-toolbar__state--unsaved {
+  color: #ff9a3c;
+}
+
+.editor-toolbar__badge {
+  padding: 0 calc(4 * var(--px));
+  color: var(--navy);
+  background: var(--yellow);
+}
+
+.editor-toolbar__tools {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: calc(4 * var(--px));
+}
+
+.tool-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(36 * var(--px));
+  padding: 0;
+  background: var(--navy);
+  border: calc(2 * var(--px)) solid rgb(255 255 255 / 0.35);
+  cursor: pointer;
+}
+
+.tool-button:hover,
+.tool-button:focus-visible {
+  border-color: #fff;
+  outline: none;
+}
+
+.tool-button[aria-pressed='true'] {
+  border-color: var(--yellow);
+  background: var(--purple);
+}
+
+.tool-button__key {
+  position: absolute;
+  right: calc(1 * var(--px));
+  bottom: 0;
+  font-size: calc(10 * var(--px));
+  line-height: 1;
+  color: #fff;
+  text-shadow: calc(1 * var(--px)) calc(1 * var(--px)) 0 #000;
+}
+
+.tool-icon {
+  display: block;
+  width: calc(24 * var(--px));
+  height: calc(22.5 * var(--px));
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+/* level-tiles.png is 128 x 60 (4 x 2 tiles of 32 x 30), shown at 3/4 size. */
+.tool-icon--tile {
+  background-image: url('/assets/textures/level-tiles.png');
+  background-size: calc(96 * var(--px)) calc(45 * var(--px));
+}
+
+.tool-icon--spawn,
+.tool-icon--eraser {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(16 * var(--px));
+  color: #fff;
+}
+
+.tool-icon--left {
+  color: var(--yellow);
+}
+
+.tool-icon--eraser {
+  color: #ff4d4d;
+}
+
+.editor-toolbar__actions {
+  display: flex;
+  gap: calc(4 * var(--px));
+}
+
+.editor-toolbar__actions .pixel-button--small {
+  flex: 1;
+  padding: calc(4 * var(--px)) calc(4 * var(--px));
+  font-size: calc(13 * var(--px));
+}
+
+.editor-toolbar__error {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(6 * var(--px));
+  margin: 0;
+  font-size: calc(12 * var(--px));
+  color: #ff4d4d;
+}
+
+.editor-toolbar__dismiss {
+  flex: none;
+  padding: 0;
+  font: inherit;
+  color: #c8cbe6;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.editor-menu {
+  z-index: 10;
+  min-width: calc(200 * var(--px));
+  padding: calc(4 * var(--px));
+  font-size: calc(15 * var(--px));
+}
+
+.editor-menu__item {
+  padding: calc(6 * var(--px)) calc(10 * var(--px));
+  color: #fff;
+  cursor: pointer;
+  outline: none;
+}
+
+.editor-menu__item[data-highlighted] {
+  color: var(--navy);
+  background: var(--yellow);
+}
+
+.editor-menu__separator {
+  height: calc(2 * var(--px));
+  margin: calc(4 * var(--px)) 0;
+  background: rgb(255 255 255 / 0.35);
+}
