@@ -203,7 +203,7 @@ export const en: Record<keyof typeof es, string> = {
   'howToPlay.enemies': 'Take out every <red>enemy</red>.',
   'howToPlay.coins': 'Collect every <gold>coin</gold>.',
   'credits.title': 'Credits',
-  'credits.authors': 'Developed by Jesús Imitola, Santiago Guerrero and Julio Mendoza.',
+  'credits.authors': 'Developed by Jesús Imitola.',
   'credits.designHeading': 'Design',
   'credits.sprites': 'Character sprites by <name>Disthron</name>.',
   'credits.soundsHeading': 'Sounds',

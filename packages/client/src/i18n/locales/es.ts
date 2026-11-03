@@ -201,7 +201,7 @@ export const es = {
   'howToPlay.enemies': 'Elimine todos los <red>enemigos</red>.',
   'howToPlay.coins': 'Recolecte todas las <gold>monedas</gold>.',
   'credits.title': 'Créditos',
-  'credits.authors': 'Desarrollado por Jesús Imitola, Santiago Guerrero y Julio Mendoza.',
+  'credits.authors': 'Desarrollado por Jesús Imitola.',
   'credits.designHeading': 'Diseños',
   'credits.sprites': 'Sprites de personajes por <name>Disthron</name>.',
   'credits.soundsHeading': 'Sonidos',
