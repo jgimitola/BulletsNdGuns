@@ -75,6 +75,8 @@ export interface UiState {
   editor: EditorStore | null;
   /** Why the last My levels action failed, until My levels opens again. */
   myLevelsError: ApiError | null;
+  /** The editor's Test run, as its banner shows it; null outside Test. */
+  testStatus: TestStatus | null;
   /** Level reads and writes, for the screens that make them directly (My levels). */
   levelsApi: LevelsApi;
   setScreen(screen: Screen): void;
@@ -119,6 +121,14 @@ export interface UiState {
   /** Editing and testing the open session; ignored with no session. */
   setEditorScreen(screen: 'editor' | 'editorTest'): void;
   setMyLevelsError(error: ApiError | null): void;
+  /** The test scene reports every frame; subscribers hear only changes. */
+  setTestStatus(status: TestStatus): void;
+}
+
+export interface TestStatus {
+  completed: boolean;
+  coins: number;
+  totalCoins: number;
 }
 
 export type UiStore = StoreApi<UiState>;
@@ -193,6 +203,7 @@ export function createUiStore(
       editor: null,
       myLevelsError: null,
       levelsApi: actions.levels,
+      testStatus: null,
       setScreen: (screen) => set({ screen }),
       setLoading: (progress, file) => set({ loading: { progress, file } }),
       setHud: (ammo, coins) => {
@@ -315,11 +326,22 @@ export function createUiStore(
         });
         return true;
       },
-      closeEditor: () => set({ editor: null, screen: 'myLevels' }),
+      closeEditor: () => set({ editor: null, screen: 'myLevels', testStatus: null }),
       setEditorScreen: (screen) => {
-        if (get().editor) set({ screen });
+        if (get().editor) set({ screen, testStatus: null });
       },
       setMyLevelsError: (myLevelsError) => set({ myLevelsError }),
+      setTestStatus: (status) => {
+        const current = get().testStatus;
+        if (
+          current?.completed === status.completed &&
+          current.coins === status.coins &&
+          current.totalCoins === status.totalCoins
+        ) {
+          return;
+        }
+        set({ testStatus: status });
+      },
     };
   });
 }

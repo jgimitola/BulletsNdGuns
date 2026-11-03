@@ -484,3 +484,26 @@ describe('my levels and the editor', () => {
     expect(actions.reload).toHaveBeenCalled();
   });
 });
+
+describe('test mode status', () => {
+  it('starts empty, stores the run status, and clears when the editor closes', async () => {
+    const { store } = setup();
+    store.getState().setAccount({ email: 'ana@bng.test', nickname: 'Ana' });
+    expect(store.getState().testStatus).toBeNull();
+    await store.getState().openEditor(null);
+    store.getState().setTestStatus({ completed: true, coins: 2, totalCoins: 3 });
+    expect(store.getState().testStatus).toEqual({ completed: true, coins: 2, totalCoins: 3 });
+    store.getState().setEditorScreen('editor');
+    expect(store.getState().testStatus).toBeNull();
+  });
+
+  it('notifies only on a change, since the scene reports every frame', () => {
+    const { store } = setup();
+    store.getState().setTestStatus({ completed: false, coins: 0, totalCoins: 3 });
+    let notified = 0;
+    const unsubscribe = store.subscribe(() => notified++);
+    store.getState().setTestStatus({ completed: false, coins: 0, totalCoins: 3 });
+    expect(notified).toBe(0);
+    unsubscribe();
+  });
+});

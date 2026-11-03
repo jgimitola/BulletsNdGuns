@@ -89,6 +89,8 @@ export const es = {
   'myLevels.copied': 'Copiado a tus niveles.',
   'myLevels.back': 'VOLVER',
   'editor.defaultName': 'Mi nivel',
+  'editorTest.banner': 'PRUEBA · Esc: volver al editor · R: reiniciar',
+  'editorTest.completed': '¡Portal alcanzado! Monedas {coins}/{total} · R: otra vez · Esc: editor',
   'editor.title': 'EDITOR · {name}',
   'editor.saved': 'Guardado',
   'editor.unsaved': 'Cambios sin guardar',

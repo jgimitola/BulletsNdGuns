@@ -3,6 +3,7 @@ import { EditorScene } from './scenes/editor-scene.ts';
 import { LevelScene } from './scenes/level-scene.ts';
 import { LoaderScene } from './scenes/loader-scene.ts';
 import { MenuScene } from './scenes/menu-scene.ts';
+import { TestScene } from './scenes/test-scene.ts';
 
 export const gameConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -16,5 +17,5 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
   },
   audio: { disableWebAudio: true },
   pixelArt: true,
-  scene: [LoaderScene, MenuScene, LevelScene, EditorScene],
+  scene: [LoaderScene, MenuScene, LevelScene, EditorScene, TestScene],
 };

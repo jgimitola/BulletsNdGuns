@@ -1225,3 +1225,25 @@ body {
   margin: calc(4 * var(--px)) 0;
   background: rgb(255 255 255 / 0.35);
 }
+
+/* Editor test mode */
+
+.test-banner {
+  position: absolute;
+  top: calc(8 * var(--px));
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: calc(4 * var(--px)) calc(12 * var(--px));
+  font-size: calc(14 * var(--px));
+  color: #fff;
+  white-space: nowrap;
+  background: var(--navy);
+  border: calc(2 * var(--px)) solid #fff;
+}
+
+.test-banner--done {
+  color: var(--navy);
+  background: var(--yellow);
+  border-color: var(--navy);
+}

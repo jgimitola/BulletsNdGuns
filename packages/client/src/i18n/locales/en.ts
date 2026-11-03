@@ -92,6 +92,8 @@ export const en: Record<keyof typeof es, string> = {
   'myLevels.copied': 'Copied to your levels.',
   'myLevels.back': 'BACK',
   'editor.defaultName': 'My level',
+  'editorTest.banner': 'TEST · Esc: back to the editor · R: restart',
+  'editorTest.completed': 'Portal reached! Coins {coins}/{total} · R: again · Esc: editor',
   'editor.title': 'EDITOR · {name}',
   'editor.saved': 'Saved',
   'editor.unsaved': 'Unsaved changes',

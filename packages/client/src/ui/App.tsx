@@ -58,12 +58,11 @@ function CurrentScreen({ screen }: { screen: Screen }) {
         </Suspense>
       );
     case 'editor':
+    case 'editorTest':
       return (
         <Suspense fallback={null}>
           <LazyEditorScreen />
         </Suspense>
       );
-    case 'editorTest':
-      return null;
   }
 }
