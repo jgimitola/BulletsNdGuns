@@ -1,14 +1,16 @@
 import type { Vec2 } from '../geometry.ts';
 
-/** Every level is one screen: 25 x 20 tiles of 32 px (800 x 600). */
+/** Every level is one screen: 25 x 20 tiles of 32 x 30 px (800 x 600). */
 export const LEVEL_COLS = 25,
   LEVEL_ROWS = 20,
-  TILE_SIZE = 32;
+  TILE_WIDTH = 32,
+  TILE_HEIGHT = 30;
 /** Tile ids are 0 (empty) and 1..TILE_KINDS, the tiles of `level-tiles.png` in order. */
 export const TILE_KINDS = 8;
 export const MAX_PICKUPS_PER_KIND = 100;
 /** Positions may overhang the level by half a tile (level 1's right spawn sits at x = 803). */
-export const POSITION_MARGIN = TILE_SIZE / 2;
+export const POSITION_MARGIN_X = TILE_WIDTH / 2,
+  POSITION_MARGIN_Y = TILE_HEIGHT / 2;
 
 export type Side = 'left' | 'right';
 
@@ -34,10 +36,10 @@ export interface PlayableLevelData extends LevelData {
 }
 
 const TILE_COUNT = LEVEL_COLS * LEVEL_ROWS;
-const MIN_X = -POSITION_MARGIN,
-  MAX_X = LEVEL_COLS * TILE_SIZE + POSITION_MARGIN;
-const MIN_Y = -POSITION_MARGIN,
-  MAX_Y = LEVEL_ROWS * TILE_SIZE + POSITION_MARGIN;
+const MIN_X = -POSITION_MARGIN_X,
+  MAX_X = LEVEL_COLS * TILE_WIDTH + POSITION_MARGIN_X;
+const MIN_Y = -POSITION_MARGIN_Y,
+  MAX_Y = LEVEL_ROWS * TILE_HEIGHT + POSITION_MARGIN_Y;
 
 function asRecord(raw: unknown): Record<string, unknown> | null {
   return typeof raw === 'object' && raw !== null && !Array.isArray(raw)

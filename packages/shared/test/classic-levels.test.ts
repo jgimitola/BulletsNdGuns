@@ -38,7 +38,9 @@ test('buildLevel numbers pickups by index and builds a solid grid from tiles', (
   expect(level.grid.isSolid(-1, 0)).toBe(false);
   expect(level.grid.isSolid(25, 18)).toBe(false);
   expect(level.grid.tile(11, 0)).toEqual({ col: 11, row: 0 });
-  expect([level.grid.cols, level.grid.rows, level.grid.tileWidth]).toEqual([25, 20, 32]);
+  expect([level.grid.cols, level.grid.rows, level.grid.tileWidth, level.grid.tileHeight]).toEqual([
+    25, 20, 32, 30,
+  ]);
 });
 
 test('pickup and portal rects keep their formulas', () => {

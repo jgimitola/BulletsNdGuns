@@ -48,7 +48,7 @@ test.each([
   ['Infinity coordinate', { ...empty(), coins: [{ x: Infinity, y: 0 }] }],
   ['string coordinate', { ...empty(), coins: [{ x: '1', y: 0 }] }],
   ['x beyond margin', { ...empty(), spawns: { left: null, right: { x: 817, y: 514 } } }],
-  ['y beyond margin', { ...empty(), portal: { x: 10, y: -17 } }],
+  ['y beyond margin', { ...empty(), portal: { x: 10, y: -16 } }],
   ['too many coins', { ...empty(), coins: Array(101).fill({ x: 0, y: 0 }) }],
   ['too many ammo', { ...empty(), ammo: Array(10_000).fill({ x: 0, y: 0 }) }],
   ['spawns missing', { ...empty(), spawns: undefined }],
@@ -62,8 +62,8 @@ test('positions on the margin edge are accepted (level 1 right spawn is x = 803)
   const edges = {
     ...empty(),
     coins: [
-      { x: 816, y: 616 },
-      { x: -16, y: -16 },
+      { x: 816, y: 615 },
+      { x: -16, y: -15 },
     ],
   };
   expect(parseLevelData(edges)).toEqual(edges);

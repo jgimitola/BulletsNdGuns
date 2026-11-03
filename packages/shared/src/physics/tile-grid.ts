@@ -46,7 +46,8 @@ export function buildTileGridFromTiles(
   tiles: readonly number[],
   cols: number,
   rows: number,
-  tileSize: number,
+  tileWidth: number,
+  tileHeight: number,
 ): TileGrid {
   const isSolid = (col: number, row: number): boolean =>
     col >= 0 && col < cols && row >= 0 && row < rows && tiles[row * cols + col] !== 0;
@@ -54,8 +55,8 @@ export function buildTileGridFromTiles(
   return {
     cols,
     rows,
-    tileWidth: tileSize,
-    tileHeight: tileSize,
+    tileWidth,
+    tileHeight,
     isSolid,
     tile: (col, row) => (isSolid(col, row) ? { col, row } : null),
   };
