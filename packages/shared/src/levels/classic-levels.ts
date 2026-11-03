@@ -17,13 +17,16 @@ function classic(
 
 // Tiles and coordinates come from the original game's Tiled maps and `coleccionables.json`
 // (branch `archive/original`). '.' is empty, '1'..'8' a tile of `level-tiles.png`.
+// Level 1's top corridor (row 3) has two-tile holes and its three top coins moved onto the
+// ledge and pillars: the original one-tile holes stopped being a challenge with the 2026-11-02
+// movement redesign.
 
 const LEVEL_1 = classic(
   [
     '...........2.2.2.2...78..',
     '.........................',
     '.........................',
-    '........222.2.2.2.222222.',
+    '........22..2..2..222222.',
     '222......................',
     '.........................',
     '.........................',
@@ -62,9 +65,9 @@ const LEVEL_1 = classic(
       { x: 544, y: 480 },
       { x: 160, y: 210 },
       { x: 608, y: 210 },
+      { x: 288, y: 90 },
       { x: 384, y: 90 },
-      { x: 448, y: 90 },
-      { x: 512, y: 90 },
+      { x: 480, y: 90 },
     ],
   },
 );

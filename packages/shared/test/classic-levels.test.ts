@@ -1,11 +1,11 @@
 import { expect, test } from 'vitest';
 import { CLASSIC_LEVELS, CLASSIC_PLAYLIST } from '../src/levels/classic-levels.ts';
-import { parseLevelData } from '../src/levels/level-data.ts';
+import { parseLevelData, tilesToRows } from '../src/levels/level-data.ts';
 import { ammoPickupRect, coinRect, portalRect } from '../src/levels/level.ts';
 
 test('classic levels keep their solid tile counts', () => {
   expect(CLASSIC_LEVELS.map((l) => l.data.tiles.filter((t) => t !== 0).length)).toEqual([
-    109, 136, 131,
+    107, 136, 131,
   ]);
 });
 
@@ -48,4 +48,13 @@ test('pickup and portal rects keep their formulas', () => {
   });
   expect(coinRect({ id: 0, x: 100, y: 200 })).toEqual({ x: 104, y: 174, width: 25, height: 23 });
   expect(portalRect(CLASSIC_PLAYLIST[0]!)).toEqual({ x: 682, y: 30, width: 44, height: 60 });
+});
+
+test('level 1 corridor has two-tile holes', () => {
+  expect(tilesToRows(CLASSIC_LEVELS[0]!.data.tiles)[3]).toBe('........22..2..2..222222.');
+  expect(CLASSIC_LEVELS[0]!.data.coins.slice(9)).toEqual([
+    { x: 288, y: 90 },
+    { x: 384, y: 90 },
+    { x: 480, y: 90 },
+  ]);
 });
