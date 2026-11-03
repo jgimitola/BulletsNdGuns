@@ -21,11 +21,17 @@ export const NO_ASSISTS: Readonly<CornerAssists> = Object.freeze({
   ledgeCatchMaxPx: 0,
 });
 
+/** A corner assist that fired during a move: the signed sideways shift, or the lift in px. */
+export type CornerAssistEvent =
+  { kind: 'headNudge'; dx: number } | { kind: 'ledgeCatch'; dy: number };
+
 export interface MoveResult {
   box: Rect;
   vx: number;
   vy: number;
   contacts: Contacts;
+  /** Reported for debugging only; the move result already includes its effect. */
+  assist: CornerAssistEvent | null;
 }
 
 /**
@@ -292,6 +298,7 @@ export function moveBox(
   const dy = vy * dt;
   let x = sweepX(box, dx, box.y, grid);
   let y: AxisResult;
+  let assist: CornerAssistEvent | null = null;
 
   const blockedX = (dx > 0 && x.hitPositive) || (dx < 0 && x.hitNegative);
   const caught =
@@ -302,11 +309,13 @@ export function moveBox(
   if (caught) {
     x = { pos: caught.x, hitNegative: false, hitPositive: false };
     y = { pos: caught.y, hitNegative: false, hitPositive: true };
+    assist = { kind: 'ledgeCatch', dy: box.y - caught.y };
   } else {
     y = sweepY(box, dy, x.pos, grid);
     if (vy < 0 && y.hitNegative && assists.headNudgeMaxPx > 0) {
       const nx = headNudge(box, x.pos, box.y + dy, grid, assists.headNudgeMaxPx);
       if (nx !== null) {
+        assist = { kind: 'headNudge', dx: nx - x.pos };
         x = { ...x, pos: nx };
         y = sweepY(box, dy, nx, grid);
       }
@@ -324,6 +333,7 @@ export function moveBox(
       up: y.hitNegative,
       down: y.hitPositive,
     },
+    assist,
   };
 }
 
