@@ -49,7 +49,7 @@ Production: `npm run build && npm start`, with this environment:
 - `BETTER_AUTH_URL`: the public URL players open, e.g. `https://bng.example.com`. Required in production (default `http://localhost:$PORT` elsewhere).
 - `DATABASE_PATH`: the SQLite file accounts live in (default `data/bng.sqlite`, git-ignored).
 - `TRUST_PROXY`: `false` (default) when players connect straight to the server; the number of proxies in front of it (or `true`) behind a reverse proxy. Rate limits count requests per client address, which this decides.
-- `TRUSTED_ORIGINS`: comma-separated extra origins allowed to call the auth API (none by default).
+- `TRUSTED_ORIGINS`: comma-separated extra origins allowed to call the auth API, open sockets and write levels (none by default; the origin of `BETTER_AUTH_URL` is always allowed).
 - `PORT` (default 3000) and `CLIENT_DIST` (default `packages/client/dist`).
 
 `npm run dev` loads `packages/server/dev.env` (`NODE_ENV=development`), which turns on a public dev secret, trusts the Vite dev server (`http://localhost:5173`) and turns off rate limits. Never deploy with it.
@@ -65,6 +65,8 @@ docker build -t bulletsndguns .
 docker run -p 3000:3000 -v bng-data:/data \
   -e BETTER_AUTH_SECRET=... -e BETTER_AUTH_URL=http://localhost:3000 bulletsndguns
 ```
+
+The live deployment runs on Railway; [docs/deployment.md](docs/deployment.md) covers deploying, checking, rolling back and backing up.
 
 The server and shared code run as TypeScript directly through Node 24 type stripping, so there is no server build step.
 
