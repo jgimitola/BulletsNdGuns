@@ -121,6 +121,11 @@ export interface UiState {
   /** Editing and testing the open session; ignored with no session. */
   setEditorScreen(screen: 'editor' | 'editorTest'): void;
   setMyLevelsError(error: ApiError | null): void;
+  /**
+   * The socket reconnected under a new id, so the server forgot this player: start over with a
+   * reload. The editor only uses HTTP, so while it is open the reload waits until it closes.
+   */
+  reconnected(): void;
   /** The test scene reports every frame; subscribers hear only changes. */
   setTestStatus(status: TestStatus): void;
 }
@@ -165,6 +170,9 @@ export function createUiStore(
       if (response.error === 'noResponse') actions.leaveRoom();
       set({ roomPending: false, roomError: response.error });
     };
+
+    /** A reconnect happened while editing; the page reloads once the editor closes. */
+    let reloadPending = false;
 
     /** Key of the nickname a register request is pending with: a revocation of it is this player. */
     let registeringKey: string | null = null;
@@ -326,7 +334,14 @@ export function createUiStore(
         });
         return true;
       },
-      closeEditor: () => set({ editor: null, screen: 'myLevels', testStatus: null }),
+      closeEditor: () => {
+        set({ editor: null, screen: 'myLevels', testStatus: null });
+        if (reloadPending) actions.reload();
+      },
+      reconnected: () => {
+        if (get().editor !== null) reloadPending = true;
+        else actions.reload();
+      },
       setEditorScreen: (screen) => {
         if (get().editor) set({ screen, testStatus: null });
       },

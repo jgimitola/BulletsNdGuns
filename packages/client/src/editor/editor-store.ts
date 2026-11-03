@@ -138,11 +138,19 @@ export function createEditorStore(
 
       setPublished: async (published) => {
         if (saving) return false;
-        if (published && !isPlayable(get().data)) return fail('notPublishable');
-        if (get().levelId === null || get().saveState !== 'saved') {
-          if (!(await get().save())) return false;
+        if (published) {
+          if (!isPlayable(get().data)) return fail('notPublishable');
+          // What gets published is the stored copy, so it must be this one.
+          if (get().levelId === null || get().saveState !== 'saved') {
+            if (!(await get().save())) return false;
+          }
         }
-        return stored(await api.setPublished(get().levelId!, published));
+        const { levelId } = get();
+        // A level never stored was never published.
+        if (levelId === null) return true;
+        // Unpublishing leaves unsaved edits alone: it is the way out when a published level's
+        // edit is refused for missing a spawn or the portal.
+        return stored(await api.setPublished(levelId, published));
       },
 
       remove: async () => {

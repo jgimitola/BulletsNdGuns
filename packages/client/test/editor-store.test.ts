@@ -207,6 +207,25 @@ describe('publishing, removal and renaming', () => {
     expect(editor.getState().published).toBe(false);
   });
 
+  test('a published level refused for a missing portal can be unpublished, keeping the edit', async () => {
+    const { api, calls, next } = fakeApi();
+    next.update = () => Promise.resolve({ ok: false, error: 'notPublishable' });
+    const editor = createEditorStore(api, savedSession(true), 'My level');
+    const portal = classic.portal!;
+    editor.getState().setTool({ kind: 'eraser' });
+    editor.getState().paintAt(portal.x - 16, portal.y - 15);
+    expect(await editor.getState().save()).toBe(false);
+    expect(await editor.getState().setPublished(false)).toBe(true);
+    expect(editor.getState().published).toBe(false);
+    expect(editor.getState().data.portal).toBeNull();
+    expect(editor.getState().saveState).toBe('unsaved');
+    expect(editor.getState().error).toBeNull();
+    next.update = null;
+    expect(await editor.getState().save()).toBe(true);
+    expect(editor.getState().saveState).toBe('saved');
+    expect(calls).toEqual(['update lvl', 'setPublished lvl false', 'update lvl']);
+  });
+
   test('removing a level that was never saved makes no request', async () => {
     const { api, calls } = fakeApi();
     const editor = createEditorStore(api, null, 'My level');

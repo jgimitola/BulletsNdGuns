@@ -72,9 +72,10 @@ let connectedBefore = false;
 
 network.onConnect(async () => {
   // A second connect means socket.io reconnected under a new socket id: the server has forgotten
-  // this player and any room they were in, so start over from a clean page.
+  // this player and any room they were in, so start over from a clean page (after the editor
+  // closes, if it is open: it needs no socket and must not lose work).
   if (connectedBefore) {
-    window.location.reload();
+    ui.getState().reconnected();
     return;
   }
   connectedBefore = true;

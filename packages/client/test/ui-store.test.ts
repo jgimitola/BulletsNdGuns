@@ -507,3 +507,22 @@ describe('test mode status', () => {
     unsubscribe();
   });
 });
+
+describe('socket reconnects', () => {
+  it('reload the page at once outside the editor', () => {
+    const { store, actions } = setup();
+    store.getState().reconnected();
+    expect(actions.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('wait while editing, so no work is lost, and reload when the editor closes', async () => {
+    const { store, actions } = setup();
+    store.getState().setAccount({ email: 'ana@bng.test', nickname: 'Ana' });
+    await store.getState().openEditor(null);
+    store.getState().reconnected();
+    store.getState().setEditorScreen('editorTest');
+    expect(actions.reload).not.toHaveBeenCalled();
+    store.getState().closeEditor();
+    expect(actions.reload).toHaveBeenCalledTimes(1);
+  });
+});
