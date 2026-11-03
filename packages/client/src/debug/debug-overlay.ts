@@ -22,6 +22,7 @@ import {
 import { Depth } from '../render/depth.ts';
 import { NICKNAME_FONT_SIZE, NICKNAME_OFFSET_Y } from '../render/player-view.ts';
 import { CorrectionMeter, RESET_THRESHOLD_PX } from './correction-meter.ts';
+import { DebugPanel } from './debug-panel.ts';
 import { parseDebugLayers, type DebugLayer } from './layers.ts';
 import { formatAssist } from './panel-text.ts';
 import { ASSIST_MARKER_TICKS, AssistMarkers, Trail, type TrailState } from './trail.ts';
@@ -97,6 +98,7 @@ export class DebugOverlay {
   private readonly layers: ReadonlySet<DebugLayer>;
   private readonly tiles: Phaser.GameObjects.Graphics | undefined;
   private readonly g: Phaser.GameObjects.Graphics;
+  private readonly panel: DebugPanel | undefined;
   private readonly labels: Phaser.GameObjects.Text[] = [];
   private labelsUsed = 0;
 
@@ -112,6 +114,7 @@ export class DebugOverlay {
     this.layers = layers;
     if (layers.has('tiles')) this.tiles = this.drawTiles();
     this.g = scene.add.graphics().setDepth(Depth.debug);
+    if (layers.has('panel')) this.panel = new DebugPanel(scene, Depth.debugPanel);
   }
 
   /** Once per fixed tick, so the trail and markers count ticks, the unit the timers use. */
@@ -139,11 +142,24 @@ export class DebugOverlay {
     if (this.layers.has('forces')) this.drawForces(view.local);
     if (this.layers.has('timers')) this.drawTimers(view.local);
     for (let i = this.labelsUsed; i < this.labels.length; i++) this.labels[i]!.setVisible(false);
+    // Input and trace exist from the first fixed step on; until then there is nothing to show.
+    if (this.panel && this.lastInput && this.lastTrace) {
+      this.panel.update({
+        state: view.local,
+        input: this.lastInput,
+        trace: this.lastTrace,
+        lastAssist: this.assists.last,
+        unacked: view.unacked,
+        peakPx: this.corrections.peakPx,
+        resetInWindow: this.corrections.resetInWindow,
+      });
+    }
   }
 
   destroy(): void {
     this.tiles?.destroy();
     this.g.destroy();
+    this.panel?.destroy();
     for (const label of this.labels) label.destroy();
   }
 

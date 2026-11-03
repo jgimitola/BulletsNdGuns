@@ -13,7 +13,12 @@ import {
   RESET_THRESHOLD_PX,
 } from '../src/debug/correction-meter.ts';
 import { formatAssist, formatPanel, type PanelData } from '../src/debug/panel-text.ts';
-import { loadPanelPrefs, savePanelPrefs, type PanelPrefs } from '../src/debug/panel-prefs.ts';
+import {
+  isTitleClick,
+  loadPanelPrefs,
+  savePanelPrefs,
+  type PanelPrefs,
+} from '../src/debug/panel-prefs.ts';
 import {
   ASSIST_MARKER_TICKS,
   AssistMarkers,
@@ -208,5 +213,16 @@ describe('panel prefs', () => {
       bounds,
     );
     expect(loaded).toEqual(prefs);
+  });
+});
+
+describe('isTitleClick', () => {
+  it('a press-release that barely moves is a click', () => {
+    expect(isTitleClick(0, 0, 3, 0)).toBe(true);
+    expect(isTitleClick(0, 0, 0, 4)).toBe(true);
+  });
+
+  it('a press-release that moves further is a drag', () => {
+    expect(isTitleClick(0, 0, 5, 0)).toBe(false);
   });
 });

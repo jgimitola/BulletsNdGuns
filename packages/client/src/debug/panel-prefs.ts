@@ -48,3 +48,11 @@ export function loadPanelPrefs(
 export function savePanelPrefs(storage: Pick<Storage, 'setItem'>, prefs: PanelPrefs): void {
   storage.setItem(STORAGE_KEY, JSON.stringify(prefs));
 }
+
+/** Movement up to this many px between press and release still counts as a click, not a drag. */
+export const PANEL_TOGGLE_MAX_DRAG_PX = 4;
+
+/** Whether a press-release on the panel title should toggle it rather than end a drag. */
+export function isTitleClick(downX: number, downY: number, upX: number, upY: number): boolean {
+  return Math.hypot(upX - downX, upY - downY) <= PANEL_TOGGLE_MAX_DRAG_PX;
+}

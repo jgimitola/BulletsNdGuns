@@ -15,4 +15,6 @@ export const Depth = {
   nicknames: 8,
   /** Debug overlay (dev only): over everything, so it never hides behind what it explains. */
   debug: 9,
+  /** The debug panel sits over the overlay's own labels so its readout stays legible. */
+  debugPanel: 10,
 } as const;
