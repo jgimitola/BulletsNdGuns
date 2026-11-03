@@ -1,4 +1,6 @@
+import { z } from 'zod';
 import type { Vec2 } from '../geometry.ts';
+import { parseWith } from '../validation.ts';
 
 /** Every level is one screen: 25 x 20 tiles of 32 x 30 px (800 x 600). */
 export const LEVEL_COLS = 25,
@@ -41,78 +43,33 @@ const MIN_X = -POSITION_MARGIN_X,
 const MIN_Y = -POSITION_MARGIN_Y,
   MAX_Y = LEVEL_ROWS * TILE_HEIGHT + POSITION_MARGIN_Y;
 
-function asRecord(raw: unknown): Record<string, unknown> | null {
-  return typeof raw === 'object' && raw !== null && !Array.isArray(raw)
-    ? (raw as Record<string, unknown>)
-    : null;
-}
+export const positionSchema = z.object({
+  x: z.number().min(MIN_X).max(MAX_X),
+  y: z.number().min(MIN_Y).max(MAX_Y),
+}) satisfies z.ZodType<Vec2>;
 
-function inRange(value: unknown, min: number, max: number): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
-}
+/** Length first, then items: a huge array is refused without walking it. */
+const positionsSchema = z.array(z.unknown()).max(MAX_PICKUPS_PER_KIND).pipe(z.array(positionSchema));
 
-function parsePosition(raw: unknown): Vec2 | null {
-  const r = asRecord(raw);
-  if (!r) return null;
-  const { x, y } = r;
-  return inRange(x, MIN_X, MAX_X) && inRange(y, MIN_Y, MAX_Y) ? { x, y } : null;
-}
+const tilesSchema = z
+  .array(z.unknown())
+  .length(TILE_COUNT)
+  .pipe(z.array(z.int().min(0).max(TILE_KINDS)));
 
-/** `null` stays null (a missing piece of a draft); anything else must be a valid position. */
-function parseOptionalPosition(raw: unknown): Vec2 | null | undefined {
-  return raw === null ? null : (parsePosition(raw) ?? undefined);
-}
-
-function parsePositions(raw: unknown): Vec2[] | null {
-  // Length first, so a huge array is refused without walking it.
-  if (!Array.isArray(raw) || raw.length > MAX_PICKUPS_PER_KIND) return null;
-  const positions: Vec2[] = [];
-  for (const item of raw) {
-    const p = parsePosition(item);
-    if (!p) return null;
-    positions.push(p);
-  }
-  return positions;
-}
-
-function parseTiles(raw: unknown): number[] | null {
-  if (!Array.isArray(raw) || raw.length !== TILE_COUNT) return null;
-  const tiles: number[] = [];
-  for (const t of raw) {
-    if (!Number.isInteger(t) || (t as number) < 0 || (t as number) > TILE_KINDS) return null;
-    tiles.push(t as number);
-  }
-  return tiles;
-}
+/** `null` spawns and portal are the missing pieces of a draft. */
+export const levelDataSchema = z.object({
+  cols: z.literal(LEVEL_COLS),
+  rows: z.literal(LEVEL_ROWS),
+  tiles: tilesSchema,
+  spawns: z.object({ left: positionSchema.nullable(), right: positionSchema.nullable() }),
+  portal: positionSchema.nullable(),
+  coins: positionsSchema,
+  ammo: positionsSchema,
+}) satisfies z.ZodType<LevelData>;
 
 /** Validates untrusted level data. Returns a fresh LevelData, or null. Never throws. */
 export function parseLevelData(raw: unknown): LevelData | null {
-  try {
-    const r = asRecord(raw);
-    if (!r || r['cols'] !== LEVEL_COLS || r['rows'] !== LEVEL_ROWS) return null;
-    const tiles = parseTiles(r['tiles']);
-    const spawns = asRecord(r['spawns']);
-    if (!tiles || !spawns) return null;
-    const left = parseOptionalPosition(spawns['left']);
-    const right = parseOptionalPosition(spawns['right']);
-    const portal = parseOptionalPosition(r['portal']);
-    const coins = parsePositions(r['coins']);
-    const ammo = parsePositions(r['ammo']);
-    if (left === undefined || right === undefined || portal === undefined || !coins || !ammo) {
-      return null;
-    }
-    return {
-      cols: LEVEL_COLS,
-      rows: LEVEL_ROWS,
-      tiles,
-      spawns: { left, right },
-      portal,
-      coins,
-      ammo,
-    };
-  } catch {
-    return null;
-  }
+  return parseWith(levelDataSchema, raw);
 }
 
 /** Has what a match needs: both spawns and the portal. */

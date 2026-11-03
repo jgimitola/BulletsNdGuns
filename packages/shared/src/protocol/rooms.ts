@@ -1,4 +1,6 @@
+import { z } from 'zod';
 import type { PlayerId } from '../simulation/player.ts';
+import { parseWith } from '../validation.ts';
 
 export const NICKNAME_MAX_LENGTH = 12;
 export const ROOM_NAME_MAX_LENGTH = 24;
@@ -44,53 +46,45 @@ export interface JoinRoomRequest {
 // C0 and C1 control characters, which would render as nothing or break the layout.
 const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/;
 
-/** Trimmed text of 1..maxLength characters without control characters, or null. Never throws. */
-function parseLabel(raw: unknown, maxLength: number): string | null {
-  if (typeof raw !== 'string') return null;
-  const text = raw.trim();
-  // Count code points so an emoji is one character, as the player sees it.
-  const length = [...text].length;
-  if (length < 1 || length > maxLength || CONTROL_CHARS.test(text)) return null;
-  return text;
+/** Trimmed text of 1..maxLength characters without control characters. */
+function labelSchema(maxLength: number) {
+  return z
+    .string()
+    .trim()
+    .refine((text) => {
+      // Count code points so an emoji is one character, as the player sees it.
+      const length = [...text].length;
+      return length >= 1 && length <= maxLength && !CONTROL_CHARS.test(text);
+    });
 }
 
+export const nicknameSchema = labelSchema(NICKNAME_MAX_LENGTH);
+export const roomNameSchema = labelSchema(ROOM_NAME_MAX_LENGTH);
+
+export const createRoomSchema = z.object({
+  name: roomNameSchema,
+  nickname: nicknameSchema,
+}) satisfies z.ZodType<CreateRoomRequest>;
+
+export const joinRoomSchema = z.object({
+  roomId: z.string().min(1).max(64),
+  nickname: nicknameSchema,
+}) satisfies z.ZodType<JoinRoomRequest>;
+
 export function parseNickname(raw: unknown): string | null {
-  return parseLabel(raw, NICKNAME_MAX_LENGTH);
+  return parseWith(nicknameSchema, raw);
 }
 
 export function parseRoomName(raw: unknown): string | null {
-  return parseLabel(raw, ROOM_NAME_MAX_LENGTH);
-}
-
-function asRecord(raw: unknown): Record<string, unknown> | null {
-  return typeof raw === 'object' && raw !== null && !Array.isArray(raw)
-    ? (raw as Record<string, unknown>)
-    : null;
+  return parseWith(roomNameSchema, raw);
 }
 
 /** Validates an untrusted `createRoom` payload. Returns a fresh request, or null. Never throws. */
 export function parseCreateRoom(raw: unknown): CreateRoomRequest | null {
-  try {
-    const r = asRecord(raw);
-    if (!r) return null;
-    const name = parseRoomName(r['name']);
-    const nickname = parseNickname(r['nickname']);
-    return name !== null && nickname !== null ? { name, nickname } : null;
-  } catch {
-    return null;
-  }
+  return parseWith(createRoomSchema, raw);
 }
 
 /** Validates an untrusted `joinRoom` payload. Returns a fresh request, or null. Never throws. */
 export function parseJoinRoom(raw: unknown): JoinRoomRequest | null {
-  try {
-    const r = asRecord(raw);
-    if (!r) return null;
-    const roomId = r['roomId'];
-    const nickname = parseNickname(r['nickname']);
-    if (typeof roomId !== 'string' || roomId.length === 0 || roomId.length > 64) return null;
-    return nickname !== null ? { roomId, nickname } : null;
-  } catch {
-    return null;
-  }
+  return parseWith(joinRoomSchema, raw);
 }

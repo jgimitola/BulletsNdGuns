@@ -1,8 +1,20 @@
+import { z } from 'zod';
 import type { PlayableLevelData } from '../levels/level-data.ts';
 import type { BulletState, PlayerId, PlayerState } from '../simulation/player.ts';
 import type { WorldState } from '../simulation/world.ts';
+import { parseWith } from '../validation.ts';
 import type { InputFrame } from './input.ts';
 import type { RoomAck, RoomLobby } from './rooms.ts';
+
+/** `z.int()` only takes safe integers. */
+export const inputFrameSchema = z.object({
+  seq: z.int().min(1),
+  level: z.int().min(0),
+  left: z.boolean(),
+  right: z.boolean(),
+  jumpPressed: z.boolean(),
+  shootPressed: z.boolean(),
+}) satisfies z.ZodType<InputFrame>;
 
 export interface Snapshot {
   tick: number;
@@ -61,24 +73,7 @@ export interface ClientToServerEvents {
 
 /** Validates untrusted client input. Returns a fresh InputFrame, or null if malformed. Never throws. */
 export function parseInput(raw: unknown): InputFrame | null {
-  try {
-    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
-    const r = raw as Record<string, unknown>;
-    const { seq, level, left, right, jumpPressed, shootPressed } = r;
-    if (typeof seq !== 'number' || !Number.isSafeInteger(seq) || seq < 1) return null;
-    if (typeof level !== 'number' || !Number.isSafeInteger(level) || level < 0) return null;
-    if (
-      typeof left !== 'boolean' ||
-      typeof right !== 'boolean' ||
-      typeof jumpPressed !== 'boolean' ||
-      typeof shootPressed !== 'boolean'
-    ) {
-      return null;
-    }
-    return { seq, level, left, right, jumpPressed, shootPressed };
-  } catch {
-    return null;
-  }
+  return parseWith(inputFrameSchema, raw);
 }
 
 export function toSnapshot(

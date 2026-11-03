@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { parseInput, toSnapshot } from '../src/protocol/messages.ts';
+import { inputFrameSchema, parseInput, toSnapshot } from '../src/protocol/messages.ts';
 import { CLASSIC_PLAYLIST } from '../src/levels/classic-levels.ts';
 import { createWorld } from '../src/simulation/world.ts';
 
@@ -81,4 +81,9 @@ test('toSnapshot copies the shots it is given', () => {
   const snap = toSnapshot(world, 0, shots);
   expect(snap.shots).toEqual(shots);
   expect(snap.shots).not.toBe(shots);
+});
+
+test('inputFrameSchema is what parseInput applies', () => {
+  expect(inputFrameSchema.safeParse({ ...ok, seq: 1 }).success).toBe(true);
+  expect(inputFrameSchema.safeParse({ ...ok, seq: 0 }).success).toBe(false);
 });

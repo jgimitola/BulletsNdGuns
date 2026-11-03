@@ -1,5 +1,6 @@
 export * from './constants.ts';
 export * from './geometry.ts';
+export * from './validation.ts';
 export * from './physics/tile-grid.ts';
 export * from './physics/tile-collision.ts';
 export * from './levels/level-data.ts';

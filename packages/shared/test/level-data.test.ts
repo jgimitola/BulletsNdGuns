@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 import {
   isPlayable,
+  levelDataSchema,
   parseLevelData,
   tilesFromRows,
   tilesToRows,
@@ -80,4 +81,10 @@ test('tilesFromRows and tilesToRows round-trip', () => {
   expect(() => tilesFromRows(rows.slice(1))).toThrow();
   expect(() => tilesFromRows(['9' + '.'.repeat(24), ...rows.slice(1)])).toThrow();
   expect(() => tilesFromRows(['.'.repeat(24), ...rows.slice(1)])).toThrow();
+});
+
+test('levelDataSchema refuses a huge coins array without accepting it', () => {
+  const coins = Array.from({ length: 1_000_000 }, () => ({ x: 0, y: 0 }));
+  expect(levelDataSchema.safeParse({ ...empty(), coins }).success).toBe(false);
+  expect(parseLevelData({ ...empty(), coins })).toBeNull();
 });

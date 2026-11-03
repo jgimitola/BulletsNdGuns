@@ -4,6 +4,7 @@ import {
   parseJoinRoom,
   parseNickname,
   parseRoomName,
+  nicknameSchema,
 } from '../src/protocol/rooms.ts';
 
 describe('parseNickname', () => {
@@ -80,5 +81,12 @@ describe('parseJoinRoom', () => {
     { roomId: 'r1', nickname: '' },
   ])('rejects %j', (raw) => {
     expect(parseJoinRoom(raw)).toBeNull();
+  });
+});
+
+describe('nicknameSchema', () => {
+  test('counts code points, not UTF-16 units', () => {
+    expect(nicknameSchema.safeParse('🐢'.repeat(12)).success).toBe(true);
+    expect(nicknameSchema.safeParse('🐢'.repeat(13)).success).toBe(false);
   });
 });
