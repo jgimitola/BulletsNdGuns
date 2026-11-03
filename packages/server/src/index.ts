@@ -7,7 +7,11 @@ import { kyselyAccountDirectory } from './auth/account-directory.ts';
 import { createAuth } from './auth/auth.ts';
 import { loadConfig, type ServerConfig } from './config.ts';
 import { openDatabase } from './db/database.ts';
+import { migrateGameTables } from './db/migrations.ts';
 import { createApp } from './http/create-app.ts';
+import { levelsRouter } from './http/levels-routes.ts';
+import { kyselyLevelStore } from './levels/kysely-level-store.ts';
+import { LevelService } from './levels/level-service.ts';
 import {
   attachSocketGateway,
   createSocketTransport,
@@ -31,9 +35,16 @@ export async function startServer(
       }
     },
   });
+  await migrateGameTables(db);
+  const levels = new LevelService(kyselyLevelStore(db));
+  await levels.seedBuiltins();
   // `rooms` is only read once requests arrive, after it is assigned below.
   const httpServer = createServer(
-    createApp(config, { listRooms: () => rooms.list(), authHandler: toNodeHandler(auth.handler) }),
+    createApp(config, {
+      listRooms: () => rooms.list(),
+      authHandler: toNodeHandler(auth.handler),
+      levelsRouter: levelsRouter(levels, (headers) => auth.sessionAccount(headers)),
+    }),
   );
   const io: GameServer = new Server(httpServer, {
     maxHttpBufferSize: MAX_SOCKET_MESSAGE_BYTES,

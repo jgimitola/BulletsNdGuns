@@ -48,7 +48,11 @@ beforeAll(async () => {
   server = createServer(
     createApp(
       { clientDist: dist, trustProxy: false },
-      { listRooms: () => [], authHandler: (_req, res) => res.end() },
+      {
+        listRooms: () => [],
+        authHandler: (_req, res) => res.end(),
+        levelsRouter: (_req, res) => res.end(),
+      },
     ),
   );
   await new Promise<void>((resolve) => server.listen(0, resolve));

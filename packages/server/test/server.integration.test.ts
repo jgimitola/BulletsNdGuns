@@ -10,6 +10,7 @@ import type {
   ServerToClientEvents,
   Snapshot,
 } from '@bng/shared';
+import { CLASSIC_LEVELS, type LevelData, type LevelDetail, type LevelPage } from '@bng/shared';
 import { loadConfig, type ServerConfig } from '../src/config.ts';
 import { startServer } from '../src/index.ts';
 
@@ -157,6 +158,102 @@ describe('accounts over HTTP', () => {
       body: JSON.stringify({ email: 'a@b.co', password: 'x'.repeat(100_000), name: 'A' }),
     });
     expect(res.status).toBe(413);
+  });
+});
+
+/** A JSON call to the levels API as the holder of `cookie` (a guest without one). */
+async function api(
+  method: string,
+  path: string,
+  cookie?: string,
+  body?: unknown,
+): Promise<{ status: number; json: unknown }> {
+  const res = await fetch(`${url()}/api/levels${path}`, {
+    method,
+    headers: {
+      ...(cookie ? { cookie } : {}),
+      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const text = await res.text();
+  return { status: res.status, json: text ? (JSON.parse(text) as unknown) : null };
+}
+
+const levelData: LevelData = CLASSIC_LEVELS[0]!.data;
+const levelOf = (json: unknown) => (json as { level: LevelDetail }).level;
+
+describe('levels API', () => {
+  test('lists the classics first, for guests too', async () => {
+    const { status, json } = await api('GET', '/');
+    expect(status).toBe(200);
+    const page = json as LevelPage;
+    expect(page.levels.map((l) => l.id)).toEqual(['classic-1', 'classic-2', 'classic-3']);
+    expect(page.nextOffset).toBeNull();
+  });
+
+  test('guests cannot write', async () => {
+    const { status, json } = await api('POST', '/', undefined, { name: 'Torre', data: levelData });
+    expect(status).toBe(401);
+    expect(json).toEqual({ error: 'signInRequired' });
+  });
+
+  test('an author creates, edits, publishes and deletes; others only read', async () => {
+    const ana = await register('Ana');
+    const beto = await register('Beto');
+    const created = await api('POST', '/', ana, { name: 'Torre', data: levelData });
+    expect(created.status).toBe(201);
+    const id = levelOf(created.json).id;
+    expect((await api('GET', `/${id}`, beto)).status).toBe(404);
+    const renamed = await api('PUT', `/${id}`, ana, { name: 'Torre 2', data: levelData });
+    expect(renamed.status).toBe(200);
+    expect(levelOf(renamed.json).name).toBe('Torre 2');
+    expect(levelOf((await api('POST', `/${id}/publish`, ana)).json).published).toBe(true);
+    expect((await api('GET', `/${id}`, beto)).status).toBe(200);
+    const stolen = await api('PUT', `/${id}`, beto, { name: 'Mine', data: levelData });
+    expect(stolen).toEqual({ status: 403, json: { error: 'forbidden' } });
+    expect((await api('POST', `/${id}/duplicate`, beto)).status).toBe(201);
+    expect(levelOf((await api('POST', `/${id}/unpublish`, ana)).json).published).toBe(false);
+    expect((await api('DELETE', `/${id}`, ana)).status).toBe(204);
+    expect((await api('GET', `/${id}`, ana)).status).toBe(404);
+  });
+
+  test('refuses invalid data and an oversized body', async () => {
+    const ana = await register('Ana');
+    expect(await api('POST', '/', ana, { name: '', data: levelData })).toEqual({
+      status: 400,
+      json: { error: 'invalid' },
+    });
+    const big = await api('POST', '/', ana, {
+      name: 'Torre',
+      data: levelData,
+      pad: 'x'.repeat(40_000),
+    });
+    expect(big.status).toBe(413);
+  });
+
+  test('publishing an unplayable level is a 409', async () => {
+    const ana = await register('Ana');
+    const draft = await api('POST', '/', ana, {
+      name: 'Torre',
+      data: { ...levelData, portal: null },
+    });
+    const id = levelOf(draft.json).id;
+    expect(await api('POST', `/${id}/publish`, ana)).toEqual({
+      status: 409,
+      json: { error: 'notPublishable' },
+    });
+  });
+
+  test('writes are rate-limited per account', async () => {
+    const ana = await register('Ana');
+    const id = levelOf((await api('POST', '/', ana, { name: 'Torre', data: levelData })).json).id;
+    const statuses: number[] = [];
+    for (let i = 0; i < 20; i++) {
+      statuses.push((await api('PUT', `/${id}`, ana, { name: `T${i}`, data: levelData })).status);
+    }
+    expect(statuses.at(-1)).toBe(429);
+    expect(statuses.filter((s) => s === 200)).toHaveLength(19);
   });
 });
 

@@ -22,6 +22,12 @@ import {
   type WorldState,
 } from '@bng/shared';
 
+/** One level of a room's playlist: its own copy, so later edits never reach the room. */
+export interface PlaylistLevel {
+  name: string;
+  level: Level;
+}
+
 /** Implemented by the socket gateway. */
 export interface RoomTransport {
   send<E extends keyof ServerToClientEvents>(

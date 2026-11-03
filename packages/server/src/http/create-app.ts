@@ -12,6 +12,8 @@ export interface AppDeps {
   listRooms(): RoomSummary[];
   /** better-auth's endpoints. It reuses a body already read, so the size limit runs first. */
   authHandler: RequestHandler;
+  /** `/api/levels`. */
+  levelsRouter: RequestHandler;
 }
 
 /**
@@ -43,6 +45,7 @@ export function createApp(
     clientIp,
     deps.authHandler,
   );
+  app.use('/api/levels', deps.levelsRouter);
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'notFound' });
   });

@@ -15,6 +15,7 @@ import {
 import type { SessionAccount } from '../auth/auth.ts';
 import type { NicknameRegistry } from '../nicknames/nickname-registry.ts';
 import type { RoomManager } from '../rooms/room-manager.ts';
+import { rateLimiter } from './rate-limiter.ts';
 import type { RoomTransport } from '../rooms/room.ts';
 
 export interface SocketData {
@@ -48,19 +49,6 @@ export function createSocketTransport(io: GameServer): RoomTransport {
   return {
     send(playerId, event, ...args) {
       io.to(playerId).emit(event, ...args);
-    },
-  };
-}
-
-/** Counts events in a rolling window; `hit()` returns false once the limit is exceeded. */
-function rateLimiter(limit: number, windowMs: number, now: () => number = Date.now) {
-  const times: number[] = [];
-  return {
-    hit(): boolean {
-      const t = now();
-      while (times.length > 0 && (times[0] as number) <= t - windowMs) times.shift();
-      times.push(t);
-      return times.length <= limit;
     },
   };
 }
