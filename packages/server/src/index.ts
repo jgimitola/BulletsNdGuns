@@ -56,7 +56,10 @@ export async function startServer(
       },
     });
   });
-  attachSocketGateway(io, rooms, { registry, sessionAccount: (headers) => auth.sessionAccount(headers) });
+  attachSocketGateway(io, rooms, {
+    registry,
+    sessionAccount: (headers) => auth.sessionAccount(headers),
+  });
 
   await new Promise<void>((resolve, reject) => {
     httpServer.once('error', reject);

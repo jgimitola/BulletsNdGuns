@@ -49,7 +49,10 @@ export const positionSchema = z.object({
 }) satisfies z.ZodType<Vec2>;
 
 /** Length first, then items: a huge array is refused without walking it. */
-const positionsSchema = z.array(z.unknown()).max(MAX_PICKUPS_PER_KIND).pipe(z.array(positionSchema));
+const positionsSchema = z
+  .array(z.unknown())
+  .max(MAX_PICKUPS_PER_KIND)
+  .pipe(z.array(positionSchema));
 
 const tilesSchema = z
   .array(z.unknown())

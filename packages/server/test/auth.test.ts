@@ -103,7 +103,10 @@ describe('profile', () => {
     const { headers } = await register('a@b.co', 'Ana');
     nicknameChanged.mockClear();
     const cookie = new Headers({ cookie: cookieOf(headers) });
-    await auth.api.updateUser({ headers: cookie, body: { username: 'Zed', displayUsername: 'Zed' } });
+    await auth.api.updateUser({
+      headers: cookie,
+      body: { username: 'Zed', displayUsername: 'Zed' },
+    });
     expect(nicknameChanged).toHaveBeenCalledWith(expect.any(String), 'Zed');
   });
 

@@ -1,5 +1,6 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import {
+  nicknameKey,
   parseNickname,
   type MatchEndReason,
   type MatchResult,
@@ -9,6 +10,7 @@ import {
   type RoomLobby,
 } from '@bng/shared';
 import type { Locale } from '../i18n/index.ts';
+import type { AuthApi, AuthError, AuthResult } from '../net/auth-api.ts';
 import type { NicknameResponse, RoomResponse } from '../net/network-client.ts';
 
 export type Screen = 'connecting' | 'loading' | 'menu' | 'rooms' | 'lobby' | 'level' | 'gameOver';
@@ -44,6 +46,11 @@ export interface UiState {
   nicknameError: NicknameClaimError | null;
   /** Null for guests. */
   account: Account | null;
+  /** An account request (register, sign in, profile change) is waiting for the server. */
+  authPending: boolean;
+  authError: AuthError | null;
+  /** The nickname a registered player took from this guest, until they pick another. */
+  nicknameRevoked: string | null;
   /** The room this player is in, while on the lobby screen and during its match. */
   lobby: RoomLobby | null;
   /** A create or join request is waiting for the server. */
@@ -70,6 +77,22 @@ export interface UiState {
   ready(): void;
   setResult(result: MatchResult, reason: MatchEndReason): void;
   backToMenu(): void;
+  setAccount(account: Account | null): void;
+  /**
+   * Account actions resolve to whether they succeeded, so a dialog knows to close. Register, sign
+   * in and sign out reload the page: the socket must reconnect to carry the new session.
+   */
+  register(email: string, nickname: string, password: string): Promise<boolean>;
+  signIn(email: string, password: string): Promise<boolean>;
+  signOut(): Promise<boolean>;
+  /** The new name applies from the next room; the current one keeps the old. */
+  renameAccount(nickname: string): Promise<boolean>;
+  changePassword(current: string, next: string): Promise<boolean>;
+  clearAuthError(): void;
+  /** The server took this guest's nickname for an account. */
+  revokeNickname(nickname: string): void;
+  /** Claims the nickname field after a revocation, staying on the current screen. */
+  reclaimNickname(): Promise<void>;
 }
 
 export type UiStore = StoreApi<UiState>;
@@ -83,6 +106,8 @@ export interface UiActions {
   saveNickname(nickname: string): void;
   /** Switches the i18n module to `locale` and remembers it. */
   changeLocale(locale: Locale): void;
+  auth: AuthApi;
+  reload(): void;
 }
 
 export function createUiStore(
@@ -104,6 +129,22 @@ export function createUiStore(
       set({ roomPending: false, roomError: response.error });
     };
 
+    /** Key of the nickname a register request is pending with: a revocation of it is this player. */
+    let registeringKey: string | null = null;
+
+    /** Runs one account request; `onSuccess` runs only if it worked. */
+    const authCall = async (
+      request: () => Promise<AuthResult>,
+      onSuccess: () => void,
+    ): Promise<boolean> => {
+      if (get().authPending) return false;
+      set({ authPending: true, authError: null });
+      const response = await request();
+      set({ authPending: false, authError: response.ok ? null : response.error });
+      if (response.ok) onSuccess();
+      return response.ok;
+    };
+
     return {
       screen: 'connecting',
       loading: { progress: 0, file: '' },
@@ -114,6 +155,9 @@ export function createUiStore(
       nickname: initial.nickname ?? '',
       nicknameError: null,
       account: null,
+      authPending: false,
+      authError: null,
+      nicknameRevoked: null,
       lobby: null,
       roomPending: false,
       roomError: null,
@@ -173,6 +217,51 @@ export function createUiStore(
         set({ result: { result, reason }, lobby: null, waiting: false, screen: 'gameOver' }),
       backToMenu: () =>
         set({ screen: 'menu', result: null, lobby: null, waiting: false, roomError: null }),
+      setAccount: (account) => set({ account }),
+      register: async (email, nickname, password) => {
+        registeringKey = nicknameKey(nickname);
+        try {
+          return await authCall(
+            () => actions.auth.register(email, nickname, password),
+            actions.reload,
+          );
+        } finally {
+          registeringKey = null;
+        }
+      },
+      signIn: (email, password) =>
+        authCall(() => actions.auth.signIn(email, password), actions.reload),
+      signOut: () => authCall(() => actions.auth.signOut(), actions.reload),
+      renameAccount: (nickname) => {
+        const name = nickname.trim();
+        return authCall(
+          () => actions.auth.rename(name),
+          () => {
+            const account = get().account;
+            if (account) set({ account: { ...account, nickname: name } });
+          },
+        );
+      },
+      changePassword: (current, next) =>
+        authCall(
+          () => actions.auth.changePassword(current, next),
+          () => {},
+        ),
+      clearAuthError: () => set({ authError: null }),
+      revokeNickname: (nickname) => {
+        if (registeringKey !== null && registeringKey === nicknameKey(nickname)) return;
+        set({ nicknameRevoked: nickname });
+      },
+      reclaimNickname: async () => {
+        const nickname = parseNickname(get().nickname);
+        if (nickname === null) {
+          set({ nicknameError: 'invalid' });
+          return;
+        }
+        const response = await actions.claimNickname(nickname);
+        if (response.ok) set({ nicknameRevoked: null, nicknameError: null });
+        else set({ nicknameError: response.error });
+      },
     };
   });
 }

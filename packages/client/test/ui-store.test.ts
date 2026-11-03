@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { RoomLobby } from '@bng/shared';
+import type { AuthApi, AuthResult } from '../src/net/auth-api.ts';
 import type { NicknameResponse, RoomResponse } from '../src/net/network-client.ts';
 import { createUiStore, type UiActions } from '../src/ui/store.ts';
 
@@ -9,17 +10,34 @@ const lobby: RoomLobby = {
   players: [{ id: 'a', nickname: 'Ana', ready: false }],
 };
 
+const ok = async (): Promise<AuthResult> => ({ ok: true });
+
+function fakeAuth(over: Partial<AuthApi> = {}): AuthApi {
+  return {
+    session: vi.fn(async () => null),
+    register: vi.fn(ok),
+    signIn: vi.fn(ok),
+    signOut: vi.fn(ok),
+    rename: vi.fn(ok),
+    changePassword: vi.fn(ok),
+    ...over,
+  };
+}
+
 function setup(over: Partial<UiActions> = {}, nickname = 'Ana') {
   const actions: UiActions = {
     sendReady: vi.fn(),
     createRoom: vi.fn(async (): Promise<RoomResponse> => ({ ok: true, lobby })),
     joinRoom: vi.fn(async (): Promise<RoomResponse> => ({ ok: true, lobby })),
     leaveRoom: vi.fn(),
-    claimNickname: vi.fn(
-      async (nickname: string): Promise<NicknameResponse> => ({ ok: true, nickname }),
-    ),
+    claimNickname: vi.fn(async (nickname: string): Promise<NicknameResponse> => ({
+      ok: true,
+      nickname,
+    })),
     saveNickname: vi.fn(),
     changeLocale: vi.fn(),
+    auth: fakeAuth(),
+    reload: vi.fn(),
     ...over,
   };
   const store = createUiStore(actions, { nickname });
@@ -66,9 +84,7 @@ describe('ui store', () => {
 
   it('a refused claim stays on the menu with the reason, until the nickname changes', async () => {
     const { store } = setup({
-      claimNickname: vi.fn(
-        async (): Promise<NicknameResponse> => ({ ok: false, error: 'taken' }),
-      ),
+      claimNickname: vi.fn(async (): Promise<NicknameResponse> => ({ ok: false, error: 'taken' })),
     });
     store.getState().setScreen('menu');
     await store.getState().openRooms();
@@ -204,6 +220,8 @@ describe('ui store locale', () => {
       createRoom: vi.fn(),
       joinRoom: vi.fn(),
       claimNickname: vi.fn(),
+      auth: fakeAuth(),
+      reload: vi.fn(),
       leaveRoom: vi.fn(),
       saveNickname: vi.fn(),
       changeLocale: vi.fn(),
@@ -225,6 +243,8 @@ describe('ui store ping', () => {
       createRoom: vi.fn(),
       joinRoom: vi.fn(),
       claimNickname: vi.fn(),
+      auth: fakeAuth(),
+      reload: vi.fn(),
       leaveRoom: vi.fn(),
       saveNickname: vi.fn(),
       changeLocale: vi.fn(),
@@ -237,5 +257,106 @@ describe('ui store ping', () => {
     store.getState().setPing(null);
     expect(listener).toHaveBeenCalledTimes(2);
     expect(store.getState().ping).toBeNull();
+  });
+});
+
+describe('ui store accounts', () => {
+  const ana = { email: 'a@b.co', nickname: 'Ana' };
+
+  it('a successful register reloads the page to reconnect signed in', async () => {
+    const { store, actions } = setup();
+    expect(await store.getState().register('a@b.co', 'Ana', 'password123')).toBe(true);
+    expect(actions.auth.register).toHaveBeenCalledWith('a@b.co', 'Ana', 'password123');
+    expect(actions.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('a refused register shows why and stays', async () => {
+    const auth = fakeAuth({
+      register: vi.fn(async (): Promise<AuthResult> => ({ ok: false, error: 'nicknameTaken' })),
+    });
+    const { store, actions } = setup({ auth });
+    expect(await store.getState().register('a@b.co', 'Ana', 'password123')).toBe(false);
+    expect(store.getState()).toMatchObject({ authError: 'nicknameTaken', authPending: false });
+    expect(actions.reload).not.toHaveBeenCalled();
+  });
+
+  it('signIn and signOut reload on success', async () => {
+    const { store, actions } = setup();
+    await store.getState().signIn('a@b.co', 'password123');
+    store.getState().setAccount(ana);
+    await store.getState().signOut();
+    expect(actions.auth.signIn).toHaveBeenCalledWith('a@b.co', 'password123');
+    expect(actions.reload).toHaveBeenCalledTimes(2);
+  });
+
+  it('renameAccount updates the shown nickname without reloading', async () => {
+    const { store, actions } = setup();
+    store.getState().setAccount(ana);
+    expect(await store.getState().renameAccount(' Zed ')).toBe(true);
+    expect(actions.auth.rename).toHaveBeenCalledWith('Zed');
+    expect(store.getState().account).toEqual({ email: 'a@b.co', nickname: 'Zed' });
+    expect(actions.reload).not.toHaveBeenCalled();
+  });
+
+  it('changePassword reports a wrong current password', async () => {
+    const auth = fakeAuth({
+      changePassword: vi.fn(async (): Promise<AuthResult> => ({
+        ok: false,
+        error: 'wrongPassword',
+      })),
+    });
+    const { store } = setup({ auth });
+    store.getState().setAccount(ana);
+    expect(await store.getState().changePassword('nope1234', 'password456')).toBe(false);
+    expect(store.getState().authError).toBe('wrongPassword');
+    store.getState().clearAuthError();
+    expect(store.getState().authError).toBeNull();
+  });
+
+  it('authPending is set while a call runs', async () => {
+    let finish: (result: AuthResult) => void = () => {};
+    const auth = fakeAuth({ signIn: vi.fn(() => new Promise<AuthResult>((r) => (finish = r))) });
+    const { store } = setup({ auth });
+    const pending = store.getState().signIn('a@b.co', 'password123');
+    expect(store.getState().authPending).toBe(true);
+    finish({ ok: false, error: 'wrongCredentials' });
+    await pending;
+    expect(store.getState().authPending).toBe(false);
+  });
+
+  it('a revoked nickname is noted for the notice', () => {
+    const { store } = setup();
+    store.getState().revokeNickname('Ana');
+    expect(store.getState().nicknameRevoked).toBe('Ana');
+  });
+
+  it('revoking the name this guest is registering with is ignored: same person', async () => {
+    let finish: (result: AuthResult) => void = () => {};
+    const auth = fakeAuth({ register: vi.fn(() => new Promise<AuthResult>((r) => (finish = r))) });
+    const { store } = setup({ auth });
+    const registering = store.getState().register('a@b.co', 'Ana', 'password123');
+    store.getState().revokeNickname('ana');
+    expect(store.getState().nicknameRevoked).toBeNull();
+    finish({ ok: true });
+    await registering;
+  });
+
+  it('reclaimNickname clears the notice on success and keeps the screen', async () => {
+    const { store, actions } = setup({}, 'Ana');
+    store.getState().setScreen('lobby');
+    store.getState().revokeNickname('Ana');
+    store.getState().setNickname('Ana2');
+    await store.getState().reclaimNickname();
+    expect(actions.claimNickname).toHaveBeenCalledWith('Ana2');
+    expect(store.getState()).toMatchObject({ nicknameRevoked: null, screen: 'lobby' });
+  });
+
+  it('a refused reclaim keeps the notice with the reason', async () => {
+    const { store } = setup({
+      claimNickname: vi.fn(async (): Promise<NicknameResponse> => ({ ok: false, error: 'taken' })),
+    });
+    store.getState().revokeNickname('Ana');
+    await store.getState().reclaimNickname();
+    expect(store.getState()).toMatchObject({ nicknameRevoked: 'Ana', nicknameError: 'taken' });
   });
 });

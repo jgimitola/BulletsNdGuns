@@ -2,6 +2,7 @@ import '@fontsource/tiny5';
 import '@fontsource/press-start-2p';
 import './ui/styles.css';
 import { detectLocale, setLocale, type Locale } from './i18n/index.ts';
+import { createAuthApi } from './net/auth-api.ts';
 import { LATENCY_TIMEOUT_MS, startLatencyMonitor } from './net/latency.ts';
 import { NetworkClient } from './net/network-client.ts';
 import { mountUi } from './ui/mount.tsx';
@@ -36,6 +37,9 @@ const locale = detectLocale(loadSetting(LOCALE_STORAGE_KEY), navigator.languages
 applyLocale(locale);
 
 const network = new NetworkClient();
+const auth = createAuthApi();
+// Asked at once, in parallel with the socket connection; the menu waits for the answer.
+const session = auth.session();
 const ui = createUiStore(
   {
     sendReady: () => network.sendReady(),
@@ -48,6 +52,8 @@ const ui = createUiStore(
       applyLocale(next);
       saveSetting(LOCALE_STORAGE_KEY, next);
     },
+    auth,
+    reload: () => window.location.reload(),
   },
   { nickname: loadSetting(NICKNAME_STORAGE_KEY) ?? '', locale },
 );
@@ -62,7 +68,7 @@ const gameModule = import('./game.ts');
 
 let connectedBefore = false;
 
-network.onConnect(() => {
+network.onConnect(async () => {
   // A second connect means socket.io reconnected under a new socket id: the server has forgotten
   // this player and any room they were in, so start over from a clean page.
   if (connectedBefore) {
@@ -71,6 +77,7 @@ network.onConnect(() => {
   }
   connectedBefore = true;
   if (network.playerId) ui.getState().setPlayerId(network.playerId);
+  ui.getState().setAccount(await session);
   startLatencyMonitor(
     () => network.measureLatency(LATENCY_TIMEOUT_MS),
     (ms) => ui.getState().setPing(ms),
@@ -81,3 +88,4 @@ network.onConnect(() => {
 });
 
 network.on('lobbyUpdated', (lobby) => ui.getState().setLobby(lobby));
+network.on('nicknameRevoked', (nickname) => ui.getState().revokeNickname(nickname));

@@ -44,7 +44,8 @@ const envSchema = z
   .transform((env): ServerConfig => {
     const production = env.NODE_ENV === 'production';
     const parsedPort = Number(env.PORT);
-    const port = env.PORT && Number.isInteger(parsedPort) && parsedPort >= 0 ? parsedPort : DEFAULT_PORT;
+    const port =
+      env.PORT && Number.isInteger(parsedPort) && parsedPort >= 0 ? parsedPort : DEFAULT_PORT;
     return {
       port,
       clientDist: env.CLIENT_DIST ?? DEFAULT_CLIENT_DIST,

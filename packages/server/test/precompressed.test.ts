@@ -45,7 +45,9 @@ beforeAll(async () => {
   // Only a gzip copy, to check that br is not offered when it does not exist.
   writeFileSync(join(dist, 'assets', 'style.css'), STYLE);
   writeFileSync(join(dist, 'assets', 'style.css.gz'), gzipSync(STYLE));
-  server = createServer(createApp({ clientDist: dist }, { listRooms: () => [], authHandler: (_req, res) => res.end() }));
+  server = createServer(
+    createApp({ clientDist: dist }, { listRooms: () => [], authHandler: (_req, res) => res.end() }),
+  );
   await new Promise<void>((resolve) => server.listen(0, resolve));
   port = (server.address() as AddressInfo).port;
 });

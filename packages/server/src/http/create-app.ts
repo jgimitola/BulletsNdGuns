@@ -10,7 +10,10 @@ export interface AppDeps {
   authHandler: RequestHandler;
 }
 
-export function createApp(config: Pick<ServerConfig, 'clientDist'>, deps: AppDeps): express.Express {
+export function createApp(
+  config: Pick<ServerConfig, 'clientDist'>,
+  deps: AppDeps,
+): express.Express {
   const app = express();
   app.get('/healthz', (_req, res) => {
     res.status(200).json({ status: 'ok' });
