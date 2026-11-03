@@ -51,6 +51,7 @@ function RoomsScreen() {
             <thead>
               <tr>
                 <th scope="col">{t('rooms.name')}</th>
+                <th scope="col">{t('rooms.levels')}</th>
                 <th scope="col">{t('rooms.players')}</th>
                 <th scope="col">{t('rooms.status')}</th>
               </tr>
@@ -116,6 +117,9 @@ function RoomRow({
   return (
     <tr>
       <td className="rooms__name">{room.name}</td>
+      <td className="rooms__levels" title={room.levels.join(', ')}>
+        {room.levels.join(', ')}
+      </td>
       <td className="rooms__count">{room.players}</td>
       <td className="rooms__status">
         {room.status === 'lobby' ? (

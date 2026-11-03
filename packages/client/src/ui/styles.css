@@ -575,11 +575,226 @@ body {
   text-align: center;
 }
 
+/* Level picker (create-room dialog) */
+
+.field--wide {
+  width: 100%;
+}
+
+.field--row {
+  flex-direction: row;
+  width: 100%;
+}
+
+.field--row .pixel-input {
+  flex: 1;
+}
+
+/* Read by screen readers, not shown. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.playlist {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(4 * var(--px));
+  width: 100%;
+}
+
+.playlist__chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(6 * var(--px));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.playlist__chip {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--px));
+  padding: calc(2 * var(--px)) calc(6 * var(--px));
+  font-size: calc(16 * var(--px));
+  background: var(--navy);
+  border: calc(2 * var(--px)) solid var(--yellow);
+  cursor: grab;
+}
+
+.playlist__chip:focus-visible {
+  outline: calc(2 * var(--px)) solid #fff;
+}
+
+.playlist__chip--dragged {
+  opacity: 0.5;
+}
+
+.playlist__number {
+  min-width: 1.2em;
+  color: var(--navy);
+  text-align: center;
+  background: var(--yellow);
+}
+
+.playlist__remove {
+  padding: 0;
+  font: inherit;
+  color: #c8cbe6;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.playlist__remove:hover,
+.playlist__remove:focus-visible {
+  color: #ff4d4d;
+  outline: none;
+}
+
+.level-browser {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8 * var(--px));
+  width: 100%;
+}
+
+.level-browser__bar {
+  display: flex;
+  gap: calc(8 * var(--px));
+}
+
+.level-browser__search {
+  flex: 1;
+  width: auto;
+  font-size: calc(16 * var(--px));
+  text-align: left;
+}
+
+.level-browser__tabs {
+  display: flex;
+  gap: calc(6 * var(--px));
+}
+
+.level-browser__tab[aria-pressed='true'] {
+  background: var(--purple);
+}
+
+.level-browser__list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--px));
+  max-height: calc(128 * var(--px));
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.level-browser__more {
+  align-self: center;
+}
+
+.level-row {
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--px));
+  width: 100%;
+  padding: calc(4 * var(--px));
+  font: inherit;
+  font-size: calc(16 * var(--px));
+  color: #fff;
+  text-align: left;
+  background: var(--navy);
+  border: calc(2 * var(--px)) solid rgb(255 255 255 / 0.35);
+  cursor: pointer;
+}
+
+.level-row:hover:not(:disabled),
+.level-row:focus-visible {
+  border-color: #fff;
+  outline: none;
+}
+
+.level-row--selected,
+.level-row--selected:hover:not(:disabled) {
+  border-color: var(--yellow);
+}
+
+.level-row:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.level-thumb {
+  flex: none;
+  width: calc(64 * var(--px));
+  height: calc(48 * var(--px));
+  border: calc(1 * var(--px)) solid #fff;
+  image-rendering: pixelated;
+}
+
+.level-row__meta {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: calc(2 * var(--px));
+  min-width: 0;
+}
+
+.level-row__name {
+  overflow-wrap: anywhere;
+}
+
+.level-row__badge {
+  margin-left: calc(6 * var(--px));
+  padding: 0 calc(4 * var(--px));
+  font-size: calc(12 * var(--px));
+  color: var(--navy);
+  background: #c8cbe6;
+}
+
+.level-row__detail {
+  font-size: calc(13 * var(--px));
+  color: #c8cbe6;
+}
+
+.level-row__position {
+  flex: none;
+  padding: 0 calc(6 * var(--px));
+  font-weight: bold;
+  color: var(--navy);
+  background: var(--yellow);
+}
+
+.rooms__levels {
+  max-width: calc(180 * var(--px));
+  overflow: hidden;
+  font-size: calc(14 * var(--px));
+  color: #c8cbe6;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lobby__levels {
+  font-size: calc(14 * var(--px));
+  color: #c8cbe6;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
 .create-room {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: calc(14 * var(--px));
+  gap: calc(10 * var(--px));
 }
 
 .room-error {

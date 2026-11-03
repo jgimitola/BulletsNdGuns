@@ -14,6 +14,9 @@ export function LobbyScreen() {
       <div className="brick-strip" />
       <div className="lobby pixel-panel">
         <h2 className="lobby__title">{lobby.name}</h2>
+        <p className="lobby__levels">
+          {t('lobby.levels')} {lobby.levels.map((name, i) => `${i + 1}. ${name}`).join(', ')}
+        </p>
         <h3 className="lobby__heading">{t('lobby.players')}</h3>
         <ul className="lobby__players">
           {lobby.players.map((p) => (
