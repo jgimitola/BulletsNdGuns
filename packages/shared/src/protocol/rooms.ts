@@ -31,6 +31,9 @@ export interface RoomLobby {
 
 export type RoomError = 'invalid' | 'notFound' | 'inProgress' | 'alreadyInRoom' | 'tooManyRooms';
 
+/** Why a guest could not claim a nickname. */
+export type NicknameError = 'invalid' | 'taken';
+
 export type RoomAck = { ok: true; lobby: RoomLobby } | { ok: false; error: RoomError };
 
 export interface CreateRoomRequest {
