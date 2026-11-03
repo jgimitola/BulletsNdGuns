@@ -8,6 +8,7 @@ import {
   type PlayerId,
   type PlayerState,
   type Snapshot,
+  type StepTrace,
 } from '@bng/shared';
 
 /**
@@ -47,23 +48,30 @@ export class LocalPlayerPredictor {
     frame: InputFrame;
     jumped: boolean;
     bullet: BulletState | null;
+    trace: StepTrace;
   } {
     // Tagged with the level so the server can drop it if it arrives after a level change.
     const frame: InputFrame = { ...keys, seq: this.nextSeq++, level: this.levelIndex };
     const result = stepPlayer(this.current, frame, this.level);
     this.current = result.player;
     this.unacked.push(frame);
-    return { frame, jumped: result.jumped, bullet: result.bullet };
+    return { frame, jumped: result.jumped, bullet: result.bullet, trace: result.trace };
   }
 
-  /** Replay is silent: jump and shot events only ever come from applyInput. */
-  reconcile(snapshot: Snapshot): void {
-    if (snapshot.levelIndex !== this.levelIndex) return;
+  /**
+   * Replay is silent: jump and shot events only ever come from applyInput. Returns how far the
+   * predicted position moved, in px (the prediction error this snapshot corrected), or null when
+   * the snapshot did not apply.
+   */
+  reconcile(snapshot: Snapshot): number | null {
+    if (snapshot.levelIndex !== this.levelIndex) return null;
     const server = snapshot.players.find((p) => p.id === this.playerId);
-    if (!server) return;
+    if (!server) return null;
+    const before = this.current;
     this.unacked = this.unacked.filter((f) => f.seq > snapshot.ackSeq);
     let state = server;
     for (const frame of this.unacked) state = stepPlayer(state, frame, this.level).player;
     this.current = state;
+    return Math.hypot(state.x - before.x, state.y - before.y);
   }
 }

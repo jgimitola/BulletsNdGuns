@@ -39,6 +39,35 @@ function snap(player: PlayerState, ackSeq: number, levelIndex = 0): Snapshot {
 }
 
 describe('LocalPlayerPredictor', () => {
+  it('applyInput returns the step trace', () => {
+    const { predictor, first } = setup();
+    const { frame, trace } = predictor.applyInput(keys({ right: true }));
+    expect(trace).toEqual(stepPlayer(first, frame, level).trace);
+  });
+
+  it('reconcile returns 0 when the server agrees', () => {
+    const { predictor } = setup();
+    let world = createWorld([{ id: 'me', side: 'left' }]);
+    for (let i = 0; i < 10; i++) {
+      const { frame } = predictor.applyInput(keys({ right: true }));
+      world = stepWorld(world, new Map([['me', frame]])).world;
+    }
+    expect(predictor.reconcile(toSnapshot(world, 10))).toBe(0);
+  });
+
+  it('reconcile returns the correction distance', () => {
+    const { predictor } = setup();
+    predictor.applyInput(keys());
+    const predicted = predictor.state;
+    const server = { ...predicted, x: predicted.x + 3, y: predicted.y + 4 };
+    expect(predictor.reconcile(snap(server, 1))).toBeCloseTo(5, 9);
+  });
+
+  it('reconcile of another level returns null', () => {
+    const { predictor, first } = setup();
+    expect(predictor.reconcile(snap(first, 0, 1))).toBeNull();
+  });
+
   it('numbers frames from 1', () => {
     const { predictor } = setup();
     expect(predictor.applyInput(keys()).frame.seq).toBe(1);
@@ -94,8 +123,9 @@ describe('LocalPlayerPredictor', () => {
       predictor.applyInput(keys({ shootPressed: true, jumpPressed: true })),
     );
     expect(results.filter((r) => r.bullet !== null)).toHaveLength(1);
+    // Reconcile only reports a correction distance, never jump or shot events.
     const ret = predictor.reconcile(snap(first, 0));
-    expect(ret).toBeUndefined();
+    expect(typeof ret).toBe('number');
     expect(predictor.state.ammo).toBe(first.ammo - 1);
     expect(predictor.pending).toHaveLength(3);
     expect(predictor.applyInput(keys()).frame.seq).toBe(4);
