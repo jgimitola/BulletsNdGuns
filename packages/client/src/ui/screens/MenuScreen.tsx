@@ -1,18 +1,21 @@
 import { useEffect } from 'react';
-import { NICKNAME_MAX_LENGTH, parseNickname } from '@bng/shared';
+import { parseNickname } from '@bng/shared';
 import { t } from '../../i18n/index.ts';
+import { NicknameErrorMessage } from '../AuthErrorMessage.tsx';
 import { CreditsDialog } from '../dialogs/CreditsDialog.tsx';
 import { HowToPlayDialog } from '../dialogs/HowToPlayDialog.tsx';
+import { ProfileDialog } from '../dialogs/ProfileDialog.tsx';
+import { RegisterDialog } from '../dialogs/RegisterDialog.tsx';
+import { SignInDialog } from '../dialogs/SignInDialog.tsx';
 import { playHoverSound } from '../hover-sound.ts';
 import { LanguageToggle } from '../LanguageToggle.tsx';
+import { NicknameField } from '../NicknameField.tsx';
+import type { Account } from '../store.ts';
 import { useUi, useUiStore } from '../UiStoreContext.tsx';
 import { loadRoomsScreen } from './lazy-screens.ts';
 
 export function MenuScreen() {
-  const store = useUiStore();
-  const nickname = useUi((s) => s.nickname);
-  const nicknameError = useUi((s) => s.nicknameError);
-  const valid = parseNickname(nickname) !== null;
+  const account = useUi((s) => s.account);
   // The room list is the next screen: fetch its chunk now so JUGAR opens it without a wait.
   useEffect(() => {
     void loadRoomsScreen();
@@ -36,42 +39,7 @@ export function MenuScreen() {
         <span>{t('menu.titleTop')}</span>
         <span>{t('menu.titleBottom')}</span>
       </h1>
-      <form
-        className="menu__form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void store.getState().openRooms();
-        }}
-      >
-        <label className="field">
-          <span className="field__label">{t('menu.nickname')}</span>
-          <input
-            className="pixel-input"
-            value={nickname}
-            // Room for surrounding spaces, which are trimmed; the length check is parseNickname's.
-            maxLength={NICKNAME_MAX_LENGTH + 8}
-            autoComplete="nickname"
-            spellCheck={false}
-            aria-invalid={nickname !== '' && !valid}
-            aria-describedby="nickname-hint"
-            onChange={(event) => store.getState().setNickname(event.target.value)}
-          />
-          <span id="nickname-hint" className="field__hint">
-            {t('menu.nicknameHint', { max: NICKNAME_MAX_LENGTH })}
-          </span>
-        </label>
-        <p className="room-error" role="alert">
-          {nicknameError ? t(`nicknameError.${nicknameError}`) : ''}
-        </p>
-        <button
-          type="submit"
-          className="pixel-button pixel-button--primary"
-          disabled={!valid}
-          onPointerEnter={playHoverSound}
-        >
-          {t('menu.play')}
-        </button>
-      </form>
+      {account ? <SignedInMenu account={account} /> : <GuestMenu />}
       <HowToPlayDialog
         trigger={
           <button type="button" className="pixel-button" onPointerEnter={playHoverSound}>
@@ -80,5 +48,84 @@ export function MenuScreen() {
         }
       />
     </div>
+  );
+}
+
+function SignedInMenu({ account }: { account: Account }) {
+  const store = useUiStore();
+  return (
+    <>
+      <p className="menu__greeting">{t('menu.greeting', { nickname: account.nickname })}</p>
+      <button
+        type="button"
+        className="pixel-button pixel-button--primary"
+        onPointerEnter={playHoverSound}
+        onClick={() => void store.getState().openRooms()}
+      >
+        {t('menu.play')}
+      </button>
+      <ProfileDialog
+        trigger={
+          <button type="button" className="pixel-button" onPointerEnter={playHoverSound}>
+            {t('menu.profile')}
+          </button>
+        }
+      />
+    </>
+  );
+}
+
+function GuestMenu() {
+  const store = useUiStore();
+  const nickname = useUi((s) => s.nickname);
+  return (
+    <>
+      <div className="menu__account">
+        <SignInDialog
+          trigger={
+            <button
+              type="button"
+              className="pixel-button pixel-button--small"
+              onPointerEnter={playHoverSound}
+            >
+              {t('menu.signIn')}
+            </button>
+          }
+        />
+        <RegisterDialog
+          trigger={
+            <button
+              type="button"
+              className="pixel-button pixel-button--small"
+              onPointerEnter={playHoverSound}
+            >
+              {t('menu.register')}
+            </button>
+          }
+        />
+      </div>
+      <form
+        className="menu__form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void store.getState().openRooms();
+        }}
+      >
+        <NicknameField
+          label={t('menu.nickname')}
+          value={nickname}
+          onChange={(value) => store.getState().setNickname(value)}
+        />
+        <NicknameErrorMessage />
+        <button
+          type="submit"
+          className="pixel-button pixel-button--primary"
+          disabled={parseNickname(nickname) === null}
+          onPointerEnter={playHoverSound}
+        >
+          {t('menu.playAsGuest')}
+        </button>
+      </form>
+    </>
   );
 }

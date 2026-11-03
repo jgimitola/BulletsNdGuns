@@ -25,6 +25,7 @@ export function RoomsScreenWithQuery() {
 function RoomsScreen() {
   const store = useUiStore();
   const pending = useUi((s) => s.roomPending);
+  const signedIn = useUi((s) => s.account !== null);
   const rooms = useQuery({
     queryKey: ROOMS_QUERY_KEY,
     queryFn: ({ signal }) => fetchRooms(signal),
@@ -82,18 +83,22 @@ function RoomsScreen() {
         >
           {t('rooms.back')}
         </button>
-        <CreateRoomDialog
-          trigger={
-            <button
-              type="button"
-              className="pixel-button pixel-button--primary"
-              disabled={pending}
-              onPointerEnter={playHoverSound}
-            >
-              {t('rooms.create')}
-            </button>
-          }
-        />
+        {signedIn ? (
+          <CreateRoomDialog
+            trigger={
+              <button
+                type="button"
+                className="pixel-button pixel-button--primary"
+                disabled={pending}
+                onPointerEnter={playHoverSound}
+              >
+                {t('rooms.create')}
+              </button>
+            }
+          />
+        ) : (
+          <p className="rooms__sign-in-hint">{t('rooms.signInToCreate')}</p>
+        )}
       </div>
     </div>
   );

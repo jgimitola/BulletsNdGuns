@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactElement } from 'react';
-import { parseNickname, parseRoomName, ROOM_NAME_MAX_LENGTH } from '@bng/shared';
+import { parseRoomName, ROOM_NAME_MAX_LENGTH } from '@bng/shared';
 import { t } from '../../i18n/index.ts';
 import { PixelDialog } from '../PixelDialog.tsx';
 import { RoomErrorMessage } from '../RoomErrorMessage.tsx';
@@ -18,7 +18,8 @@ function CreateRoomForm() {
   const store = useUiStore();
   const pending = useUi((s) => s.roomPending);
   const [name, setName] = useState(() =>
-    t('createRoom.defaultName', { nickname: parseNickname(store.getState().nickname) ?? '' }),
+    // Only accounts create rooms, so the room is named after the account.
+    t('createRoom.defaultName', { nickname: store.getState().account?.nickname ?? '' }),
   );
   useEffect(() => store.getState().clearRoomError(), [store]);
   const valid = parseRoomName(name) !== null;

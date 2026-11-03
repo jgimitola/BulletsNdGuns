@@ -6,6 +6,7 @@ import { LoadingScreen } from './screens/LoadingScreen.tsx';
 import { LobbyScreen } from './screens/LobbyScreen.tsx';
 import { MenuScreen } from './screens/MenuScreen.tsx';
 import { LazyRoomsScreen } from './screens/lazy-screens.ts';
+import { NicknameRevokedDialog } from './dialogs/NicknameRevokedDialog.tsx';
 import { PingIndicator } from './PingIndicator.tsx';
 import type { Screen } from './store.ts';
 import { useUi } from './UiStoreContext.tsx';
@@ -15,6 +16,7 @@ const SHOWS_PING: ReadonlySet<Screen> = new Set(['rooms', 'lobby', 'level']);
 
 export function App() {
   const screen = useUi((s) => s.screen);
+  const revoked = useUi((s) => s.nicknameRevoked);
   // `t` reads the i18n module, not React state. Subscribing here re-renders the whole tree (nothing
   // below is memoised) when the language changes, so every text is translated again.
   useUi((s) => s.locale);
@@ -22,6 +24,8 @@ export function App() {
     <>
       <CurrentScreen screen={screen} />
       {SHOWS_PING.has(screen) && <PingIndicator />}
+      {/* Mid-match the notice waits for the result screen, so it never covers the game. */}
+      {revoked !== null && screen !== 'level' && <NicknameRevokedDialog nickname={revoked} />}
     </>
   );
 }

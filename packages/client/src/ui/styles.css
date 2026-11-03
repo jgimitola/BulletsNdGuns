@@ -188,6 +188,25 @@ body {
     calc(6 * var(--px)) calc(6 * var(--px)) 0 #000;
 }
 
+/* On the brick strip: the menu column has no height to spare. */
+.menu__account {
+  position: absolute;
+  bottom: calc(32 * var(--px));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: calc(16 * var(--px));
+}
+
+.menu__account .pixel-button {
+  width: calc(180 * var(--px));
+}
+
+.menu__greeting {
+  font-size: calc(22 * var(--px));
+  color: var(--yellow);
+}
+
 .menu__credits {
   position: absolute;
   top: calc(16 * var(--px));
@@ -509,6 +528,51 @@ body {
   flex-direction: column;
   align-items: center;
   gap: calc(18 * var(--px));
+}
+
+.auth-form,
+.profile,
+.profile__section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(12 * var(--px));
+}
+
+/* Side by side, so the whole profile fits without scrolling past the result lines. */
+.profile__forms {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: calc(16 * var(--px));
+  width: 100%;
+}
+
+.profile__section {
+  justify-content: flex-start;
+  gap: calc(8 * var(--px));
+}
+
+.profile__section + .profile__section {
+  padding-left: calc(16 * var(--px));
+  border-left: calc(2 * var(--px)) solid var(--navy);
+}
+
+.profile__email {
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.profile__notice {
+  font-size: calc(16 * var(--px));
+  color: #00ff0d;
+  text-align: center;
+}
+
+.rooms__sign-in-hint {
+  width: calc(240 * var(--px));
+  font-size: calc(16 * var(--px));
+  color: #c8cbe6;
+  text-align: center;
 }
 
 .create-room {
