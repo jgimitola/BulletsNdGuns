@@ -3,6 +3,7 @@ import '@fontsource/press-start-2p';
 import './ui/styles.css';
 import { detectLocale, setLocale, type Locale } from './i18n/index.ts';
 import { createAuthApi } from './net/auth-api.ts';
+import { createLevelsApi } from './net/levels-api.ts';
 import { LATENCY_TIMEOUT_MS, startLatencyMonitor } from './net/latency.ts';
 import { NetworkClient } from './net/network-client.ts';
 import { mountUi } from './ui/mount.tsx';
@@ -53,6 +54,7 @@ const ui = createUiStore(
       saveSetting(LOCALE_STORAGE_KEY, next);
     },
     auth,
+    levels: createLevelsApi(),
     reload: () => window.location.reload(),
   },
   { nickname: loadSetting(NICKNAME_STORAGE_KEY) ?? '', locale },

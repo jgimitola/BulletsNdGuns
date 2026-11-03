@@ -9,3 +9,10 @@ export const loadRoomsScreen = () => import('./RoomsScreen.tsx');
 export const LazyRoomsScreen = lazy(() =>
   loadRoomsScreen().then((m) => ({ default: m.RoomsScreenWithQuery })),
 );
+
+/** My levels has its own chunk too; it shares the query client with the room list. */
+export const loadMyLevelsScreen = () => import('./MyLevelsScreen.tsx');
+
+export const LazyMyLevelsScreen = lazy(() =>
+  loadMyLevelsScreen().then((m) => ({ default: m.MyLevelsScreenWithQuery })),
+);

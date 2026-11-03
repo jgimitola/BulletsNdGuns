@@ -1,6 +1,7 @@
 import {
   CLASSIC_LEVELS,
   LEVELS_PAGE_SIZE,
+  MAX_LEVELS_PER_ACCOUNT,
   RESERVED_NICKNAME,
   buildLevel,
   isPlayable,
@@ -18,8 +19,8 @@ import type { LevelRecord, LevelStore } from './level-store.ts';
 
 export type ServiceResult<T> = { ok: true; value: T } | { ok: false; error: LevelError };
 
-/** Levels one account may own, drafts included (user's decision). */
-export const MAX_LEVELS_PER_ACCOUNT = 10;
+/** The cap lives in shared so My levels can show it; re-exported for the server code and tests. */
+export { MAX_LEVELS_PER_ACCOUNT };
 
 const ok = <T>(value: T): ServiceResult<T> => ({ ok: true, value });
 const fail = <T>(error: LevelError): ServiceResult<T> => ({ ok: false, error });

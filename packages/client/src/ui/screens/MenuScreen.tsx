@@ -12,7 +12,7 @@ import { LanguageToggle } from '../LanguageToggle.tsx';
 import { NicknameField } from '../NicknameField.tsx';
 import type { Account } from '../store.ts';
 import { useUi, useUiStore } from '../UiStoreContext.tsx';
-import { loadRoomsScreen } from './lazy-screens.ts';
+import { loadMyLevelsScreen, loadRoomsScreen } from './lazy-screens.ts';
 
 export function MenuScreen() {
   const account = useUi((s) => s.account);
@@ -53,6 +53,9 @@ export function MenuScreen() {
 
 function SignedInMenu({ account }: { account: Account }) {
   const store = useUiStore();
+  useEffect(() => {
+    void loadMyLevelsScreen();
+  }, []);
   return (
     <>
       <p className="menu__greeting">{t('menu.greeting', { nickname: account.nickname })}</p>
@@ -64,13 +67,28 @@ function SignedInMenu({ account }: { account: Account }) {
       >
         {t('menu.play')}
       </button>
-      <ProfileDialog
-        trigger={
-          <button type="button" className="pixel-button" onPointerEnter={playHoverSound}>
-            {t('menu.profile')}
-          </button>
-        }
-      />
+      <button
+        type="button"
+        className="pixel-button"
+        onPointerEnter={playHoverSound}
+        onClick={() => store.getState().openMyLevels()}
+      >
+        {t('menu.myLevels')}
+      </button>
+      {/* On the brick strip, like the guest's account buttons: the column has no room left. */}
+      <div className="menu__account">
+        <ProfileDialog
+          trigger={
+            <button
+              type="button"
+              className="pixel-button pixel-button--small"
+              onPointerEnter={playHoverSound}
+            >
+              {t('menu.profile')}
+            </button>
+          }
+        />
+      </div>
     </>
   );
 }

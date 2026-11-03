@@ -8,6 +8,8 @@ export const LEVEL_NAME_MAX_LENGTH = 24;
 /** Levels one room plays, at most. */
 export const MAX_PLAYLIST_LENGTH = 10;
 export const LEVELS_PAGE_SIZE = 20;
+/** Levels one account may hold, drafts included. */
+export const MAX_LEVELS_PER_ACCOUNT = 10;
 /** Built-in levels' ids are their slugs; a room created without a playlist plays these. */
 export const DEFAULT_PLAYLIST: readonly string[] = CLASSIC_LEVELS.map((l) => l.slug);
 

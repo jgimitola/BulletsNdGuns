@@ -5,7 +5,7 @@ import { HudScreen } from './screens/HudScreen.tsx';
 import { LoadingScreen } from './screens/LoadingScreen.tsx';
 import { LobbyScreen } from './screens/LobbyScreen.tsx';
 import { MenuScreen } from './screens/MenuScreen.tsx';
-import { LazyRoomsScreen } from './screens/lazy-screens.ts';
+import { LazyMyLevelsScreen, LazyRoomsScreen } from './screens/lazy-screens.ts';
 import { NicknameRevokedDialog } from './dialogs/NicknameRevokedDialog.tsx';
 import { PingIndicator } from './PingIndicator.tsx';
 import type { Screen } from './store.ts';
@@ -51,5 +51,14 @@ function CurrentScreen({ screen }: { screen: Screen }) {
       return <HudScreen />;
     case 'gameOver':
       return <GameOverScreen />;
+    case 'myLevels':
+      return (
+        <Suspense fallback={<div className="screen screen--menu" />}>
+          <LazyMyLevelsScreen />
+        </Suspense>
+      );
+    case 'editor':
+    case 'editorTest':
+      return null;
   }
 }

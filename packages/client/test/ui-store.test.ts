@@ -3,6 +3,9 @@ import type { RoomLobby } from '@bng/shared';
 import type { AuthApi, AuthResult } from '../src/net/auth-api.ts';
 import type { NicknameResponse, RoomResponse } from '../src/net/network-client.ts';
 import { createUiStore, type UiActions } from '../src/ui/store.ts';
+import type { LevelsApi } from '../src/net/levels-api.ts';
+import { emptyLevel } from '../src/editor/level-edits.ts';
+import { t } from '../src/i18n/index.ts';
 
 const lobby: RoomLobby = {
   id: 'r1',
@@ -25,6 +28,19 @@ function fakeAuth(over: Partial<AuthApi> = {}): AuthApi {
   };
 }
 
+function fakeLevels(over: Partial<LevelsApi> = {}): LevelsApi {
+  const unused = () => Promise.reject(new Error('unused'));
+  return {
+    get: vi.fn(unused),
+    create: vi.fn(unused),
+    update: vi.fn(unused),
+    setPublished: vi.fn(unused),
+    remove: vi.fn(unused),
+    duplicate: vi.fn(unused),
+    ...over,
+  };
+}
+
 function setup(over: Partial<UiActions> = {}, nickname = 'Ana') {
   const actions: UiActions = {
     sendReady: vi.fn(),
@@ -39,6 +55,7 @@ function setup(over: Partial<UiActions> = {}, nickname = 'Ana') {
     changeLocale: vi.fn(),
     auth: fakeAuth(),
     reload: vi.fn(),
+    levels: fakeLevels(),
     ...over,
   };
   const store = createUiStore(actions, { nickname });
@@ -223,6 +240,7 @@ describe('ui store locale', () => {
       claimNickname: vi.fn(),
       auth: fakeAuth(),
       reload: vi.fn(),
+      levels: fakeLevels(),
       leaveRoom: vi.fn(),
       saveNickname: vi.fn(),
       changeLocale: vi.fn(),
@@ -246,6 +264,7 @@ describe('ui store ping', () => {
       claimNickname: vi.fn(),
       auth: fakeAuth(),
       reload: vi.fn(),
+      levels: fakeLevels(),
       leaveRoom: vi.fn(),
       saveNickname: vi.fn(),
       changeLocale: vi.fn(),
@@ -359,5 +378,109 @@ describe('ui store accounts', () => {
     store.getState().revokeNickname('Ana');
     await store.getState().reclaimNickname();
     expect(store.getState()).toMatchObject({ nicknameRevoked: 'Ana', nicknameError: 'taken' });
+  });
+});
+
+describe('my levels and the editor', () => {
+  const account = { email: 'ana@bng.test', nickname: 'Ana' };
+
+  it('guests never reach My levels', () => {
+    const { store } = setup();
+    store.getState().setScreen('menu');
+    store.getState().openMyLevels();
+    expect(store.getState().screen).toBe('menu');
+    store.getState().setAccount(account);
+    store.getState().openMyLevels();
+    expect(store.getState().screen).toBe('myLevels');
+  });
+
+  it('a new level opens the editor with the default name', async () => {
+    const { store } = setup();
+    store.getState().setAccount(account);
+    store.getState().openMyLevels();
+    expect(await store.getState().openEditor(null)).toBe(true);
+    const editor = store.getState().editor;
+    expect(editor?.getState().name).toBe(t('editor.defaultName'));
+    expect(editor?.getState().levelId).toBeNull();
+    expect(store.getState().screen).toBe('editor');
+  });
+
+  it('an existing level loads before the editor opens', async () => {
+    const data = emptyLevel();
+    const get = vi.fn(async () => ({
+      ok: true as const,
+      value: {
+        id: 'x',
+        name: 'Torre',
+        author: 'Ana',
+        builtin: false,
+        published: true,
+        playable: false,
+        updatedAt: '2026-11-03T10:00:00.000Z',
+        data,
+      },
+    }));
+    const { store } = setup({ levels: fakeLevels({ get }) });
+    store.getState().setAccount(account);
+    store.getState().openMyLevels();
+    expect(await store.getState().openEditor('x')).toBe(true);
+    expect(get).toHaveBeenCalledWith('x');
+    expect(store.getState().editor?.getState()).toMatchObject({
+      levelId: 'x',
+      name: 'Torre',
+      published: true,
+      data,
+    });
+  });
+
+  it('a level that fails to load stays on My levels with the error', async () => {
+    const get = vi.fn(async () => ({ ok: false as const, error: 'notFound' as const }));
+    const { store } = setup({ levels: fakeLevels({ get }) });
+    store.getState().setAccount(account);
+    store.getState().openMyLevels();
+    expect(await store.getState().openEditor('x')).toBe(false);
+    expect(store.getState().screen).toBe('myLevels');
+    expect(store.getState().myLevelsError).toBe('notFound');
+    expect(store.getState().editor).toBeNull();
+  });
+
+  it('opening My levels clears an old error', async () => {
+    const get = vi.fn(async () => ({ ok: false as const, error: 'notFound' as const }));
+    const { store } = setup({ levels: fakeLevels({ get }) });
+    store.getState().setAccount(account);
+    store.getState().openMyLevels();
+    await store.getState().openEditor('x');
+    store.getState().backToMenu();
+    store.getState().openMyLevels();
+    expect(store.getState().myLevelsError).toBeNull();
+  });
+
+  it('closeEditor drops the session and shows My levels', async () => {
+    const { store } = setup();
+    store.getState().setAccount(account);
+    await store.getState().openEditor(null);
+    store.getState().closeEditor();
+    expect(store.getState().editor).toBeNull();
+    expect(store.getState().screen).toBe('myLevels');
+  });
+
+  it('setEditorScreen switches between editing and testing only while editing', async () => {
+    const { store } = setup();
+    store.getState().setAccount(account);
+    store.getState().setEditorScreen('editorTest');
+    expect(store.getState().screen).not.toBe('editorTest');
+    await store.getState().openEditor(null);
+    store.getState().setEditorScreen('editorTest');
+    expect(store.getState().screen).toBe('editorTest');
+    store.getState().setEditorScreen('editor');
+    expect(store.getState().screen).toBe('editor');
+  });
+
+  it('signing out while editing still reloads', async () => {
+    const { store, actions } = setup();
+    store.getState().setAccount(account);
+    await store.getState().openEditor(null);
+    await store.getState().signOut();
+    expect(actions.reload).toHaveBeenCalled();
   });
 });

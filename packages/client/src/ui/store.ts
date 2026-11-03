@@ -9,11 +9,23 @@ import {
   type RoomId,
   type RoomLobby,
 } from '@bng/shared';
-import type { Locale } from '../i18n/index.ts';
+import { createEditorStore, type EditorSession, type EditorStore } from '../editor/editor-store.ts';
+import { t, type Locale } from '../i18n/index.ts';
 import type { AuthApi, AuthError, AuthResult } from '../net/auth-api.ts';
+import type { ApiError, LevelsApi } from '../net/levels-api.ts';
 import type { NicknameResponse, RoomResponse } from '../net/network-client.ts';
 
-export type Screen = 'connecting' | 'loading' | 'menu' | 'rooms' | 'lobby' | 'level' | 'gameOver';
+export type Screen =
+  | 'connecting'
+  | 'loading'
+  | 'menu'
+  | 'rooms'
+  | 'lobby'
+  | 'level'
+  | 'gameOver'
+  | 'myLevels'
+  | 'editor'
+  | 'editorTest';
 
 export type RoomActionError = Extract<RoomResponse, { ok: false }>['error'];
 
@@ -59,6 +71,12 @@ export interface UiState {
   result: { result: MatchResult; reason: MatchEndReason } | null;
   /** COMENZAR was clicked and the server was told this player is ready. */
   waiting: boolean;
+  /** The open editing session, from the editor until it closes (testing included). */
+  editor: EditorStore | null;
+  /** Why the last My levels action failed, until My levels opens again. */
+  myLevelsError: ApiError | null;
+  /** Level reads and writes, for the screens that make them directly (My levels). */
+  levelsApi: LevelsApi;
   setScreen(screen: Screen): void;
   setLoading(progress: number, file: string): void;
   setHud(ammo: number, coins: number): void;
@@ -93,6 +111,14 @@ export interface UiState {
   revokeNickname(nickname: string): void;
   /** Claims the nickname field after a revocation, staying on the current screen. */
   reclaimNickname(): Promise<void>;
+  /** Signed-in players only; guests stay where they are. */
+  openMyLevels(): void;
+  /** A new level for null, else loads that level first. False when it could not load. */
+  openEditor(levelId: string | null): Promise<boolean>;
+  closeEditor(): void;
+  /** Editing and testing the open session; ignored with no session. */
+  setEditorScreen(screen: 'editor' | 'editorTest'): void;
+  setMyLevelsError(error: ApiError | null): void;
 }
 
 export type UiStore = StoreApi<UiState>;
@@ -107,6 +133,7 @@ export interface UiActions {
   /** Switches the i18n module to `locale` and remembers it. */
   changeLocale(locale: Locale): void;
   auth: AuthApi;
+  levels: LevelsApi;
   reload(): void;
 }
 
@@ -163,6 +190,9 @@ export function createUiStore(
       roomError: null,
       result: null,
       waiting: false,
+      editor: null,
+      myLevelsError: null,
+      levelsApi: actions.levels,
       setScreen: (screen) => set({ screen }),
       setLoading: (progress, file) => set({ loading: { progress, file } }),
       setHud: (ammo, coins) => {
@@ -262,6 +292,34 @@ export function createUiStore(
         if (response.ok) set({ nicknameRevoked: null, nicknameError: null });
         else set({ nicknameError: response.error });
       },
+      openMyLevels: () => {
+        if (!get().account) return;
+        set({ screen: 'myLevels', myLevelsError: null });
+      },
+      openEditor: async (levelId) => {
+        if (!get().account) return false;
+        let from: EditorSession | null = null;
+        if (levelId !== null) {
+          const result = await actions.levels.get(levelId);
+          if (!result.ok) {
+            set({ myLevelsError: result.error });
+            return false;
+          }
+          const { id, name, published, data } = result.value;
+          from = { levelId: id, name, published, data };
+        }
+        set({
+          editor: createEditorStore(actions.levels, from, t('editor.defaultName')),
+          screen: 'editor',
+          myLevelsError: null,
+        });
+        return true;
+      },
+      closeEditor: () => set({ editor: null, screen: 'myLevels' }),
+      setEditorScreen: (screen) => {
+        if (get().editor) set({ screen });
+      },
+      setMyLevelsError: (myLevelsError) => set({ myLevelsError }),
     };
   });
 }
