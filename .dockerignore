@@ -7,4 +7,4 @@ dist
 .playwright-mcp
 .mcp.json
 docs
-.env*.local
+**/.env*.local

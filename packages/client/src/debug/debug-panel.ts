@@ -16,6 +16,9 @@ export class DebugPanel {
   private readonly background: Phaser.GameObjects.Rectangle;
   private readonly title: Phaser.GameObjects.Text;
   private readonly body: Phaser.GameObjects.Text;
+  /** Measured once from the placeholder; the live text varies and must not resize the panel. */
+  private readonly bodyWidth: number;
+  private readonly bodyHeight: number;
   private prefs: PanelPrefs;
   private grabX = 0;
   private grabY = 0;
@@ -30,6 +33,8 @@ export class DebugPanel {
 
     // Sized from a full readout so the first placement keeps the expanded panel on screen.
     this.body.setText(EMPTY_BODY);
+    this.bodyWidth = this.body.width;
+    this.bodyHeight = this.body.height;
     this.layout(false);
     this.prefs = loadPanelPrefs(
       localStorage,
@@ -73,9 +78,9 @@ export class DebugPanel {
     this.prefs = { ...this.prefs, collapsed };
     this.title.setText(collapsed ? 'debug ▸' : 'debug ▾');
     this.body.setVisible(!collapsed).setY(this.title.y + this.title.height + 2);
-    const width = Math.max(this.title.width, collapsed ? 0 : this.body.width) + PADDING * 2;
+    const width = Math.max(this.title.width, collapsed ? 0 : this.bodyWidth) + PADDING * 2;
     const height =
-      (collapsed ? this.title.y + this.title.height : this.body.y + this.body.height) + PADDING;
+      (collapsed ? this.title.y + this.title.height : this.body.y + this.bodyHeight) + PADDING;
     this.background.setSize(width, height);
   }
 

@@ -20,6 +20,8 @@ export interface PanelData {
 }
 
 const COOLDOWN_TICKS = (SHOT_COOLDOWN_MS * TICK_RATE) / 1000;
+/** Past this an assist is simply "a while ago"; two digits keep the line inside the panel. */
+const MAX_SHOWN_AGE = 99;
 
 function signed(v: number, digits: number): string {
   const text = Math.abs(v).toFixed(digits);
@@ -53,9 +55,10 @@ export function formatPanel(d: PanelData): string[] {
   const cooldown =
     p.ticksSinceShot > COOLDOWN_TICKS ? 'ready' : `${p.ticksSinceShot}/${COOLDOWN_TICKS}`;
   const direction = input.left ? 'L' : input.right ? 'R' : '-';
-  const assist = d.lastAssist
-    ? `${formatAssist(d.lastAssist.event)} (${d.lastAssist.age} ticks ago)`
-    : 'none';
+  // Capped so an old assist cannot widen the line past the panel's fixed width.
+  const age =
+    d.lastAssist && (d.lastAssist.age > MAX_SHOWN_AGE ? `${MAX_SHOWN_AGE}+` : d.lastAssist.age);
+  const assist = d.lastAssist ? `${formatAssist(d.lastAssist.event)} (${age} ticks ago)` : 'none';
   const snap = d.resetInWindow ? 'reset' : `${d.peakPx.toFixed(1)}px`;
   return [
     `pos   ${num(p.x)}, ${num(p.y)}`,

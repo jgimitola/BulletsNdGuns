@@ -179,6 +179,11 @@ describe('formatPanel', () => {
     expect(formatPanel(data({ lastAssist }))).toContain('assist  ledge catch +6px (12 ticks ago)');
   });
 
+  it('caps the assist age so the line keeps its width', () => {
+    const lastAssist = { x: 0, y: 0, event: { kind: 'ledgeCatch', dy: 6 } as const, age: 5000 };
+    expect(formatPanel(data({ lastAssist }))).toContain('assist  ledge catch +6px (99+ ticks ago)');
+  });
+
   it('shows a reset instead of the peak', () => {
     expect(formatPanel(data({ peakPx: 2, resetInWindow: true }))).toContain(
       'net     unacked 7  snap reset',
