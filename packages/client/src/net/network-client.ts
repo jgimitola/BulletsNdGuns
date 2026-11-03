@@ -45,8 +45,8 @@ export class NetworkClient {
     this.socket.on('connect', handler);
   }
 
-  createRoom(name: string): Promise<RoomResponse> {
-    return this.withTimeout('createRoom', { name });
+  createRoom(name: string, levelIds: string[]): Promise<RoomResponse> {
+    return this.withTimeout('createRoom', { name, levelIds });
   }
 
   joinRoom(roomId: RoomId): Promise<RoomResponse> {

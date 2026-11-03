@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactElement } from 'react';
-import { parseRoomName, ROOM_NAME_MAX_LENGTH } from '@bng/shared';
+import { DEFAULT_PLAYLIST, parseRoomName, ROOM_NAME_MAX_LENGTH } from '@bng/shared';
 import { t } from '../../i18n/index.ts';
 import { PixelDialog } from '../PixelDialog.tsx';
 import { RoomErrorMessage } from '../RoomErrorMessage.tsx';
@@ -29,7 +29,7 @@ function CreateRoomForm() {
       onSubmit={(event) => {
         event.preventDefault();
         // On success the room list, and this dialog with it, gives way to the lobby.
-        if (valid) void store.getState().createRoom(name);
+        if (valid) void store.getState().createRoom(name, DEFAULT_PLAYLIST.slice());
       }}
     >
       <label className="field">

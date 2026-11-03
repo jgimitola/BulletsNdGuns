@@ -43,7 +43,7 @@ const session = auth.session();
 const ui = createUiStore(
   {
     sendReady: () => network.sendReady(),
-    createRoom: (name) => network.createRoom(name),
+    createRoom: (name, levelIds) => network.createRoom(name, levelIds),
     joinRoom: (roomId) => network.joinRoom(roomId),
     leaveRoom: () => network.leaveRoom(),
     claimNickname: (nickname) => network.claimNickname(nickname),

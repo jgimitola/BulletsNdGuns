@@ -68,7 +68,7 @@ export interface UiState {
   setNickname(nickname: string): void;
   /** Menu -> room list: accounts go straight there, guests first claim their nickname. */
   openRooms(): Promise<void>;
-  createRoom(name: string): Promise<void>;
+  createRoom(name: string, levelIds: string[]): Promise<void>;
   joinRoom(roomId: RoomId): Promise<void>;
   clearRoomError(): void;
   /** A lobby update from the server; ignored unless it is for the room this player is in. */
@@ -99,7 +99,7 @@ export type UiStore = StoreApi<UiState>;
 
 export interface UiActions {
   sendReady(): void;
-  createRoom(name: string): Promise<RoomResponse>;
+  createRoom(name: string, levelIds: string[]): Promise<RoomResponse>;
   joinRoom(roomId: RoomId): Promise<RoomResponse>;
   leaveRoom(): void;
   claimNickname(nickname: string): Promise<NicknameResponse>;
@@ -196,7 +196,7 @@ export function createUiStore(
         }
         set({ screen: 'rooms', roomError: null });
       },
-      createRoom: (name) => enterRoom(() => actions.createRoom(name)),
+      createRoom: (name, levelIds) => enterRoom(() => actions.createRoom(name, levelIds)),
       joinRoom: (roomId) => enterRoom(() => actions.joinRoom(roomId)),
       clearRoomError: () => set({ roomError: null }),
       setLobby: (lobby) => {

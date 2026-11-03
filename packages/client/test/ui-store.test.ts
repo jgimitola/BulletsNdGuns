@@ -103,10 +103,10 @@ describe('ui store', () => {
     expect(store.getState().screen).toBe('rooms');
   });
 
-  it('createRoom sends the room name and enters the lobby', async () => {
+  it('createRoom sends the room name and playlist and enters the lobby', async () => {
     const { store, actions } = setup({}, ' Ana ');
-    await store.getState().createRoom('Sala de Ana');
-    expect(actions.createRoom).toHaveBeenCalledWith('Sala de Ana');
+    await store.getState().createRoom('Sala de Ana', ['classic-3', 'classic-1']);
+    expect(actions.createRoom).toHaveBeenCalledWith('Sala de Ana', ['classic-3', 'classic-1']);
     expect(store.getState()).toMatchObject({ screen: 'lobby', lobby, roomPending: false });
   });
 
@@ -129,7 +129,7 @@ describe('ui store', () => {
     const { store, actions } = setup({
       createRoom: vi.fn(async (): Promise<RoomResponse> => ({ ok: false, error: 'noResponse' })),
     });
-    await store.getState().createRoom('Sala');
+    await store.getState().createRoom('Sala', ['classic-1']);
     expect(store.getState().roomError).toBe('noResponse');
     expect(actions.leaveRoom).toHaveBeenCalledTimes(1);
   });
