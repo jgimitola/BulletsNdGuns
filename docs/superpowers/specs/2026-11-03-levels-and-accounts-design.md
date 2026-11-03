@@ -162,7 +162,7 @@ Replace Tiled JSON with the game's own format, shared between client, server, an
 
 ```ts
 interface LevelData {
-  cols: 25; rows: 20;            // fixed, one screen of 32 px tiles (800×600)
+  cols: 25; rows: 20;            // fixed, one screen of 32×30 px tiles (800×600)
   tiles: number[];               // row-major, 0 = empty, 1..8 = tileset tile
   spawns: { left: Vec2; right: Vec2 };
   portal: Vec2;
