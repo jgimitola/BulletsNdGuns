@@ -66,6 +66,33 @@ export function snapObject(object: ObjectTool, cell: Cell): Vec2 {
   }
 }
 
+/**
+ * Every cell on the straight line from `from` to `to`, both included, each one next to the one
+ * before (Bresenham). A fast drag samples the pointer far apart; this fills the cells in between.
+ */
+export function cellsOnLine(from: Cell, to: Cell): Cell[] {
+  const cells: Cell[] = [];
+  const dCol = Math.abs(to.col - from.col);
+  const dRow = -Math.abs(to.row - from.row);
+  const stepCol = from.col < to.col ? 1 : -1;
+  const stepRow = from.row < to.row ? 1 : -1;
+  let error = dCol + dRow;
+  let { col, row } = from;
+  for (;;) {
+    cells.push({ col, row });
+    if (col === to.col && row === to.row) return cells;
+    const twice = 2 * error;
+    if (twice >= dRow) {
+      error += dRow;
+      col += stepCol;
+    }
+    if (twice <= dCol) {
+      error += dCol;
+      row += stepRow;
+    }
+  }
+}
+
 const clampCell = (col: number, row: number): Cell => ({
   col: Math.min(Math.max(col, 0), LEVEL_COLS - 1),
   row: Math.min(Math.max(row, 0), LEVEL_ROWS - 1),

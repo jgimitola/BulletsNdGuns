@@ -79,6 +79,12 @@ export function EditorToolbar({
     };
   };
 
+  const toggle = () => {
+    const next = { ...prefs, collapsed: !prefs.collapsed };
+    setPrefs(next);
+    saveToolbarPrefs(storage, next);
+  };
+
   const onTitleDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -127,6 +133,18 @@ export function EditorToolbar({
       >
         <span className="editor-toolbar__name">{t('editor.title', { name: state.name })}</span>
         <SaveStateLabel state={state} />
+        {/* The keyboard way to fold the panel; the title also folds on a click. */}
+        <button
+          type="button"
+          className="editor-toolbar__fold"
+          aria-expanded={!prefs.collapsed}
+          aria-label={t(prefs.collapsed ? 'editor.expand' : 'editor.fold')}
+          title={t(prefs.collapsed ? 'editor.expand' : 'editor.fold')}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={() => toggle()}
+        >
+          {prefs.collapsed ? '▸' : '▾'}
+        </button>
       </div>
       {!prefs.collapsed && (
         <>
@@ -286,8 +304,10 @@ function EditorMenu({
   onBack(): void;
   onDialog(dialog: EditorDialog): void;
 }) {
+  // Publishing and deleting wait for a running save, which they depend on.
+  const saving = state.saveState === 'saving';
   return (
-    <DropdownMenu.Root modal={false}>
+    <DropdownMenu.Root>
       <DropdownMenu.Trigger
         className="pixel-button pixel-button--small"
         aria-label={t('editor.menu')}
@@ -306,11 +326,16 @@ function EditorMenu({
           </DropdownMenu.Item>
           <DropdownMenu.Item
             className="editor-menu__item"
+            disabled={saving}
             onSelect={() => void state.setPublished(!state.published)}
           >
             {t(state.published ? 'editor.unpublish' : 'editor.publish')}
           </DropdownMenu.Item>
-          <DropdownMenu.Item className="editor-menu__item" onSelect={() => onDialog('delete')}>
+          <DropdownMenu.Item
+            className="editor-menu__item"
+            disabled={saving}
+            onSelect={() => onDialog('delete')}
+          >
             {t('editor.delete')}
           </DropdownMenu.Item>
           <DropdownMenu.Separator className="editor-menu__separator" />

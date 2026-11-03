@@ -126,6 +126,22 @@ describe('duplicating', () => {
     expect(copy).toMatchObject({ name: 'Torre', author: 'Beto', published: false, data: playable });
   });
 
+  test('a copy of a name the caller already has gets the next free number', async () => {
+    const original = value(await service.create(ana, write('Torre')));
+    expect(value(await service.duplicate(ana, original.id)).name).toBe('Torre (2)');
+    expect(value(await service.duplicate(ana, original.id)).name).toBe('Torre (3)');
+    const second = (await service.list(ana, { search: 'Torre (2)', mine: true, offset: 0 }))
+      .levels[0]!;
+    expect(value(await service.duplicate(ana, second.id)).name).toBe('Torre (4)');
+  });
+
+  test('a numbered copy of a long name still fits the name limit', async () => {
+    const long = 'x'.repeat(24);
+    const original = value(await service.create(ana, write(long)));
+    const copy = value(await service.duplicate(ana, original.id));
+    expect(copy.name).toBe(`${'x'.repeat(20)} (2)`);
+  });
+
   test("someone else's draft cannot be duplicated", async () => {
     const draft = value(await service.create(ana, write('Torre')));
     expect(errorOf(await service.duplicate(beto, draft.id))).toBe('notFound');

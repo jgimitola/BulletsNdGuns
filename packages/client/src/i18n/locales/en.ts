@@ -100,6 +100,8 @@ export const en: Record<keyof typeof es, string> = {
   'editor.saving': 'Saving...',
   'editor.published': 'PUBLISHED',
   'editor.collapse': 'Drag to move; click to fold.',
+  'editor.fold': 'Fold the toolbar',
+  'editor.expand': 'Unfold the toolbar',
   'editor.tools': 'Tools',
   'editor.test': 'TEST',
   'editor.testNeedsPieces': 'Testing needs both spawns and the portal.',

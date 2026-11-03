@@ -1247,3 +1247,34 @@ body {
   background: var(--yellow);
   border-color: var(--navy);
 }
+
+.editor-toolbar__title {
+  position: relative;
+  padding-right: calc(28 * var(--px));
+}
+
+.editor-toolbar__fold {
+  position: absolute;
+  top: calc(2 * var(--px));
+  right: calc(2 * var(--px));
+  width: calc(22 * var(--px));
+  height: calc(22 * var(--px));
+  padding: 0;
+  font: inherit;
+  font-size: calc(14 * var(--px));
+  color: #fff;
+  background: var(--panel);
+  border: calc(2 * var(--px)) solid rgb(255 255 255 / 0.35);
+  cursor: pointer;
+}
+
+.editor-toolbar__fold:hover,
+.editor-toolbar__fold:focus-visible {
+  border-color: var(--yellow);
+  outline: none;
+}
+
+.editor-menu__item[data-disabled] {
+  opacity: 0.5;
+  cursor: default;
+}

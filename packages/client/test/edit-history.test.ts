@@ -59,3 +59,19 @@ test('the limit drops the oldest steps', () => {
   expect(undone).toBe(3);
   expect(history.current.tiles.slice(0, 5)).toEqual([1, 1, 0, 0, 0]);
 });
+
+test('an undo in the middle of a drag keeps the rest of the drag one step', () => {
+  const start = emptyLevel();
+  const history = new EditHistory(start);
+  history.beginStroke();
+  history.apply(paint(history.current, 0));
+  history.apply(paint(history.current, 1));
+  expect(history.undo()).toBe(true);
+  expect(history.current).toBe(start);
+  history.apply(paint(history.current, 5));
+  history.apply(paint(history.current, 6));
+  history.endStroke();
+  expect(history.undo()).toBe(true);
+  expect(history.current).toBe(start);
+  expect(history.canUndo).toBe(false);
+});

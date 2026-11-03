@@ -53,21 +53,35 @@ export class EditHistory {
   }
 
   undo(): boolean {
-    this.endStroke();
-    const previous = this.past.pop();
-    if (!previous) return false;
-    this.future.push(this.present);
-    this.present = previous;
-    return true;
+    return this.step(() => {
+      const previous = this.past.pop();
+      if (!previous) return false;
+      this.future.push(this.present);
+      this.present = previous;
+      return true;
+    });
   }
 
   redo(): boolean {
+    return this.step(() => {
+      const next = this.future.pop();
+      if (!next) return false;
+      this.past.push(this.present);
+      this.present = next;
+      return true;
+    });
+  }
+
+  /**
+   * Undo and redo close an open stroke first, so they act on the whole of it. A drag that goes on
+   * after them starts a new stroke, so the rest of it is still one step.
+   */
+  private step(move: () => boolean): boolean {
+    const stroking = this.strokeStart !== null;
     this.endStroke();
-    const next = this.future.pop();
-    if (!next) return false;
-    this.past.push(this.present);
-    this.present = next;
-    return true;
+    const moved = move();
+    if (stroking) this.strokeStart = this.present;
+    return moved;
   }
 
   private inStrokeWithChanges(): boolean {

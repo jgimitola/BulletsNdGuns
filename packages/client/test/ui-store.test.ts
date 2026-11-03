@@ -455,6 +455,34 @@ describe('my levels and the editor', () => {
     expect(store.getState().myLevelsError).toBeNull();
   });
 
+  it('a level that loads after the player left My levels does not open the editor', async () => {
+    let answer: (value: Awaited<ReturnType<LevelsApi['get']>>) => void = () => {};
+    const get = vi.fn(
+      () => new Promise<Awaited<ReturnType<LevelsApi['get']>>>((r) => (answer = r)),
+    );
+    const { store } = setup({ levels: fakeLevels({ get }) });
+    store.getState().setAccount(account);
+    store.getState().openMyLevels();
+    const opening = store.getState().openEditor('x');
+    store.getState().backToMenu();
+    answer({
+      ok: true,
+      value: {
+        id: 'x',
+        name: 'Torre',
+        author: 'Ana',
+        builtin: false,
+        published: false,
+        playable: false,
+        updatedAt: '2026-11-03T10:00:00.000Z',
+        data: emptyLevel(),
+      },
+    });
+    expect(await opening).toBe(false);
+    expect(store.getState().screen).toBe('menu');
+    expect(store.getState().editor).toBeNull();
+  });
+
   it('closeEditor drops the session and shows My levels', async () => {
     const { store } = setup();
     store.getState().setAccount(account);

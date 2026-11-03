@@ -1,6 +1,7 @@
 import {
   CLASSIC_LEVELS,
   LEVELS_PAGE_SIZE,
+  LEVEL_NAME_MAX_LENGTH,
   MAX_LEVELS_PER_ACCOUNT,
   RESERVED_NICKNAME,
   buildLevel,
@@ -21,6 +22,23 @@ export type ServiceResult<T> = { ok: true; value: T } | { ok: false; error: Leve
 
 /** The cap lives in shared so My levels can show it; re-exported for the server code and tests. */
 export { MAX_LEVELS_PER_ACCOUNT };
+
+/**
+ * The name of a copy: the source's own when the author has no level by that name, else the next
+ * free `Name (n)`. A source that is itself a numbered copy counts on from its base name, and a
+ * long base is shortened so the result fits LEVEL_NAME_MAX_LENGTH.
+ */
+export function copyName(source: string, taken: readonly string[]): string {
+  const used = new Set(taken.map((name) => name.toLowerCase()));
+  if (!used.has(source.toLowerCase())) return source;
+  const base = source.replace(/ \(\d+\)$/, '');
+  for (let n = 2; ; n++) {
+    const suffix = ` (${n})`;
+    const room = LEVEL_NAME_MAX_LENGTH - suffix.length;
+    const name = Array.from(base).slice(0, room).join('').trimEnd() + suffix;
+    if (!used.has(name.toLowerCase())) return name;
+  }
+}
 
 const ok = <T>(value: T): ServiceResult<T> => ({ ok: true, value });
 const fail = <T>(error: LevelError): ServiceResult<T> => ({ ok: false, error });
@@ -108,7 +126,18 @@ export class LevelService {
     return this.serialized(authorId, async () => {
       const source = await this.visible(authorId, id);
       if (!source) return fail('notFound');
-      return this.createNow(authorId, { name: source.name, data: source.data });
+      const { records } = await this.store.list({
+        viewerId: authorId,
+        mineOnly: true,
+        search: '',
+        offset: 0,
+        limit: MAX_LEVELS_PER_ACCOUNT,
+      });
+      const name = copyName(
+        source.name,
+        records.map((r) => r.name),
+      );
+      return this.createNow(authorId, { name, data: source.data });
     });
   }
 

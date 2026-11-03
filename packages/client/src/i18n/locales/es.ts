@@ -97,6 +97,8 @@ export const es = {
   'editor.saving': 'Guardando...',
   'editor.published': 'PUBLICADO',
   'editor.collapse': 'Arrastra para mover; haz clic para plegar.',
+  'editor.fold': 'Plegar la barra',
+  'editor.expand': 'Desplegar la barra',
   'editor.tools': 'Herramientas',
   'editor.test': 'PROBAR',
   'editor.testNeedsPieces': 'Para probar necesita los dos spawns y el portal.',

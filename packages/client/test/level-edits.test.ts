@@ -13,6 +13,7 @@ import { EditHistory } from '../src/editor/edit-history.ts';
 import {
   applyTool,
   cellAt,
+  cellsOnLine,
   emptyLevel,
   objectCell,
   snapObject,
@@ -182,4 +183,29 @@ test('a stroke that leaves the level paints only cells inside it', () => {
   expect(history.current.tiles.filter((t) => t !== 0)).toHaveLength(1);
   expect(history.undo()).toBe(true);
   expect(history.current.tiles.every((t) => t === 0)).toBe(true);
+});
+
+describe('cellsOnLine', () => {
+  test('walks every cell between two cells, ends included', () => {
+    expect(cellsOnLine({ col: 0, row: 0 }, { col: 4, row: 0 })).toEqual(
+      [0, 1, 2, 3, 4].map((col) => ({ col, row: 0 })),
+    );
+    expect(cellsOnLine({ col: 2, row: 5 }, { col: 2, row: 2 })).toEqual(
+      [5, 4, 3, 2].map((row) => ({ col: 2, row })),
+    );
+  });
+
+  test('a diagonal leaves no gap', () => {
+    const cells = cellsOnLine({ col: 0, row: 0 }, { col: 6, row: 3 });
+    expect(cells[0]).toEqual({ col: 0, row: 0 });
+    expect(cells.at(-1)).toEqual({ col: 6, row: 3 });
+    for (let i = 1; i < cells.length; i++) {
+      expect(Math.abs(cells[i]!.col - cells[i - 1]!.col)).toBeLessThanOrEqual(1);
+      expect(Math.abs(cells[i]!.row - cells[i - 1]!.row)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  test('a single cell is itself', () => {
+    expect(cellsOnLine({ col: 3, row: 3 }, { col: 3, row: 3 })).toEqual([{ col: 3, row: 3 }]);
+  });
 });

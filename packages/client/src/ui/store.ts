@@ -320,6 +320,8 @@ export function createUiStore(
         let from: EditorSession | null = null;
         if (levelId !== null) {
           const result = await actions.levels.get(levelId);
+          // The player left My levels while it loaded: they no longer want it.
+          if (get().screen !== 'myLevels') return false;
           if (!result.ok) {
             set({ myLevelsError: result.error });
             return false;

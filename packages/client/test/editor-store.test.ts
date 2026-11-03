@@ -233,6 +233,27 @@ describe('publishing, removal and renaming', () => {
     expect(calls).toEqual([]);
   });
 
+  test('removing a new level while its first save runs is refused, so no copy is left behind', async () => {
+    const { api, calls } = fakeApi();
+    const editor = createEditorStore(api, null, 'My level');
+    editor.getState().paintAt(10, 10);
+    const saving = editor.getState().save();
+    expect(await editor.getState().remove()).toBe(false);
+    await saving;
+    expect(await editor.getState().remove()).toBe(true);
+    expect(calls).toEqual(['create', 'remove new-id']);
+  });
+
+  test('a fast drag paints every cell between two pointer samples', () => {
+    const editor = createEditorStore(fakeApi().api, null, 'My level');
+    editor.getState().beginStroke();
+    editor.getState().paintLine(10, 10, 790, 10);
+    editor.getState().endStroke();
+    expect(editor.getState().data.tiles.slice(0, 25)).toEqual(Array<number>(25).fill(1));
+    editor.getState().undo();
+    expect(editor.getState().saveState).toBe('saved');
+  });
+
   test('removing a saved level deletes it', async () => {
     const { api, calls } = fakeApi();
     const editor = createEditorStore(api, savedSession(false), 'My level');

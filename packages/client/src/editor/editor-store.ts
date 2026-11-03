@@ -2,7 +2,7 @@ import { createStore, type StoreApi } from 'zustand/vanilla';
 import { isPlayable, levelNameSchema, type LevelData, type LevelDetail } from '@bng/shared';
 import type { ApiError, ApiResult, LevelsApi } from '../net/levels-api.ts';
 import { EditHistory } from './edit-history.ts';
-import { applyTool, cellAt, emptyLevel } from './level-edits.ts';
+import { applyTool, cellAt, cellsOnLine, emptyLevel } from './level-edits.ts';
 import type { Tool } from './tools.ts';
 
 export type SaveState = 'saved' | 'unsaved' | 'saving';
@@ -23,6 +23,8 @@ export interface EditorState {
   beginStroke(): void;
   /** Applies the tool to the cell under a world pixel; outside the level it does nothing. */
   paintAt(x: number, y: number): void;
+  /** Applies the tool to every cell on the line between two world pixels (a fast drag). */
+  paintLine(fromX: number, fromY: number, toX: number, toY: number): void;
   endStroke(): void;
   undo(): void;
   redo(): void;
@@ -104,6 +106,20 @@ export function createEditorStore(
         history.apply(applyTool(history.current, tool, cell));
         sync();
       },
+      paintLine: (fromX, fromY, toX, toY) => {
+        const from = cellAt(fromX, fromY);
+        const to = cellAt(toX, toY);
+        if (!from || !to) {
+          // One end is outside the level: there is no line to fill, only the end inside.
+          get().paintAt(toX, toY);
+          return;
+        }
+        const { history, tool } = get();
+        for (const cell of cellsOnLine(from, to)) {
+          history.apply(applyTool(history.current, tool, cell));
+        }
+        sync();
+      },
       endStroke: () => get().history.endStroke(),
       undo: () => {
         get().history.undo();
@@ -154,6 +170,8 @@ export function createEditorStore(
       },
 
       remove: async () => {
+        // A first save still running would create the level after it was "removed".
+        if (saving) return false;
         const { levelId } = get();
         if (levelId === null) return true;
         const result = await api.remove(levelId);

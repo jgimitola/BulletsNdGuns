@@ -151,6 +151,8 @@ export class EditorScene extends Phaser.Scene {
   /** Pointer painting and keyboard shortcuts; returns what stops them. */
   private listenToInput(editor: EditorStore, hover: Phaser.GameObjects.Graphics): () => void {
     let painting = false;
+    /** Where the pointer was last painted, so a fast drag fills the cells in between. */
+    let last = { x: 0, y: 0 };
     const showHover = (pointer: Phaser.Input.Pointer) => {
       hover.clear();
       const cell = cellAt(pointer.worldX, pointer.worldY);
@@ -166,6 +168,7 @@ export class EditorScene extends Phaser.Scene {
     const onDown = (pointer: Phaser.Input.Pointer) => {
       if (!pointer.leftButtonDown()) return;
       painting = true;
+      last = { x: pointer.worldX, y: pointer.worldY };
       editor.getState().beginStroke();
       editor.getState().paintAt(pointer.worldX, pointer.worldY);
     };
@@ -173,7 +176,8 @@ export class EditorScene extends Phaser.Scene {
       showHover(pointer);
       // Objects are placed by a click only; dragging paints tiles or erases.
       if (!painting || editor.getState().tool.kind === 'object') return;
-      editor.getState().paintAt(pointer.worldX, pointer.worldY);
+      editor.getState().paintLine(last.x, last.y, pointer.worldX, pointer.worldY);
+      last = { x: pointer.worldX, y: pointer.worldY };
     };
     const onUp = () => {
       if (!painting) return;

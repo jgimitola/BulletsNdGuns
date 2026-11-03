@@ -124,6 +124,7 @@ function MyLevelsScreen() {
         <button
           type="button"
           className="pixel-button"
+          disabled={busy !== null}
           onPointerEnter={playHoverSound}
           onClick={() => store.getState().backToMenu()}
         >
