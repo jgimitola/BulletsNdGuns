@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { Server } from 'socket.io';
 import {
+  CLASSIC_PLAYLIST,
   MAX_SOCKET_MESSAGE_BYTES,
   type ClientToServerEvents,
   type ServerToClientEvents,
@@ -30,6 +31,7 @@ export async function startServer(
     return new Room({
       id,
       name,
+      playlist: CLASSIC_PLAYLIST,
       transport,
       scheduler: loop,
       onClosed: (room) => {

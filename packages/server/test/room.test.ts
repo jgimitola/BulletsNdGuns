@@ -1,20 +1,19 @@
 import { describe, expect, test } from 'vitest';
 import {
-  LEVELS,
+  CLASSIC_PLAYLIST,
   INPUT_STARVATION_TICKS,
   MOVEMENT,
   NEVER_SHOT_TICKS,
   STARTING_AMMO,
-  getLevel,
   hitboxCentreFromSprite,
   type InputFrame,
+  type Level,
   type LevelStarted,
   type MatchEnded,
   type PlayerId,
   type RoomLobby,
   type ServerToClientEvents,
   type Snapshot,
-  type WorldState,
 } from '@bng/shared';
 import { Room, type RoomTransport, type TickScheduler } from '../src/rooms/room.ts';
 import { MAX_ROOMS, RoomManager, type RoomResult } from '../src/rooms/room-manager.ts';
@@ -50,13 +49,14 @@ class FakeScheduler implements TickScheduler {
   }
 }
 
-function setup() {
+function setup(playlist: readonly Level[] = CLASSIC_PLAYLIST) {
   const transport = new FakeTransport();
   const scheduler = new FakeScheduler();
   const closed: Room[] = [];
   const room = new Room({
     id: 'r',
     name: 'Sala',
+    playlist,
     transport,
     scheduler,
     onClosed: (r) => closed.push(r),
@@ -64,8 +64,8 @@ function setup() {
   return { room, transport, scheduler, closed };
 }
 
-function startMatch(ids: PlayerId[] = ['a', 'b']) {
-  const ctx = setup();
+function startMatch(ids: PlayerId[] = ['a', 'b'], playlist: readonly Level[] = CLASSIC_PLAYLIST) {
+  const ctx = setup(playlist);
   for (const id of ids) ctx.room.join(id, id);
   for (const id of ids) ctx.room.markReady(id);
   return ctx;
@@ -98,9 +98,14 @@ function snapshotAck(t: FakeTransport, id: PlayerId): number {
   return (snaps[snaps.length - 1]!.args[0] as { ackSeq: number }).ackSeq;
 }
 
-/** Moves player `id` onto the current level portal. */
-function placeOnPortal(room: Room, id: PlayerId, world: WorldState = room.worldForTest()!): void {
-  const portal = getLevel(world.levelIndex).portal;
+/** Moves player `id` onto the portal of the current level, which comes from `playlist`. */
+function placeOnPortal(
+  room: Room,
+  id: PlayerId,
+  playlist: readonly Level[] = CLASSIC_PLAYLIST,
+): void {
+  const world = room.worldForTest()!;
+  const portal = playlist[world.levelIndex]!.portal;
   room.__setWorldForTest({
     ...world,
     players: world.players.map((p) => (p.id === id ? { ...p, x: portal.x - 4, y: portal.y } : p)),
@@ -119,8 +124,9 @@ describe('Room', () => {
     expect(room.phaseKind).toBe('playing');
     expect(transport.of('a', 'levelStarted')).toHaveLength(1);
     expect(transport.of('b', 'levelStarted')).toHaveLength(1);
-    const payload = transport.of('a', 'levelStarted')[0]!.args[0] as { levelIndex: number };
+    const payload = transport.of('a', 'levelStarted')[0]!.args[0] as LevelStarted;
     expect(payload.levelIndex).toBe(0);
+    expect(payload.level).toEqual(CLASSIC_PLAYLIST[0]!.data);
     expect(scheduler.starts).toBe(1);
   });
 
@@ -147,7 +153,7 @@ describe('Room', () => {
     const { room } = startMatch();
     expect(room.join('c', 'c')).toBe('refused');
     expect(room.playerIds).toEqual(['a', 'b']);
-    room.__setWorldForTest({ ...room.worldForTest()!, levelIndex: LEVELS.length - 1 });
+    room.__setWorldForTest({ ...room.worldForTest()!, levelIndex: CLASSIC_PLAYLIST.length - 1 });
     placeOnPortal(room, 'a');
     room.tick();
     expect(room.phaseKind).toBe('closed');
@@ -425,17 +431,36 @@ describe('Room', () => {
     for (const id of ['a', 'b']) {
       const started = transport.of(id, 'levelStarted');
       expect(started).toHaveLength(2);
-      expect((started[1]!.args[0] as { levelIndex: number }).levelIndex).toBe(1);
+      const second = started[1]!.args[0] as LevelStarted;
+      expect(second.levelIndex).toBe(1);
+      expect(second.level).toEqual(CLASSIC_PLAYLIST[1]!.data);
     }
-    const spawn = hitboxCentreFromSprite(getLevel(1).spawns.left, 'right');
+    const spawn = hitboxCentreFromSprite(CLASSIC_PLAYLIST[1]!.spawns.left, 'right');
     expect(room.worldForTest()!.players[0]!.y).toBeCloseTo(spawn.y, 0);
     room.tick();
     expect(transport.of('a', 'levelStarted')).toHaveLength(2);
   });
 
+  test('a one-level playlist ends the match when its portal is reached', () => {
+    const playlist = [CLASSIC_PLAYLIST[1]!];
+    const { room, transport, closed } = startMatch(['a', 'b'], playlist);
+    expect((transport.of('a', 'levelStarted')[0]!.args[0] as LevelStarted).level).toEqual(
+      CLASSIC_PLAYLIST[1]!.data,
+    );
+    placeOnPortal(room, 'a', playlist);
+    room.tick();
+    expect(transport.of('a', 'matchEnded')[0]!.args[0]).toMatchObject({ reason: 'completed' });
+    expect(transport.of('a', 'levelStarted')).toHaveLength(1);
+    expect(closed).toEqual([room]);
+  });
+
+  test('an empty playlist is refused', () => {
+    expect(() => setup([])).toThrow();
+  });
+
   test('last portal ends match: matchEnded completed, scheduler stopped, room closed', () => {
     const { room, transport, scheduler, closed } = startMatch();
-    room.__setWorldForTest({ ...room.worldForTest()!, levelIndex: LEVELS.length - 1 });
+    room.__setWorldForTest({ ...room.worldForTest()!, levelIndex: CLASSIC_PLAYLIST.length - 1 });
     placeOnPortal(room, 'a');
     room.tick();
     expect(room.phaseKind).toBe('closed');
@@ -533,7 +558,7 @@ describe('RoomManager', () => {
       ({ id, name, onClosed }) => {
         const scheduler = new FakeScheduler();
         schedulers.push(scheduler);
-        return new Room({ id, name, transport, scheduler, onClosed });
+        return new Room({ id, name, playlist: CLASSIC_PLAYLIST, transport, scheduler, onClosed });
       },
       () => `room-${++next}`,
     );

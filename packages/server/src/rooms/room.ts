@@ -5,7 +5,6 @@ import {
   NEUTRAL_INPUT,
   SNAPSHOT_EVERY_TICKS,
   createWorld,
-  isLastLevel,
   removePlayer,
   startLevel,
   stepWorld,
@@ -13,6 +12,7 @@ import {
   type BulletState,
   type InputFrame,
   type InputKeys,
+  type Level,
   type MatchEndReason,
   type PlayerId,
   type RoomLobby,
@@ -58,6 +58,8 @@ interface Participant {
 export interface RoomOptions {
   id: string;
   name: string;
+  /** The levels a match plays, in order. The room keeps them for its whole life. Never empty. */
+  playlist: readonly Level[];
   transport: RoomTransport;
   scheduler: TickScheduler;
   /** Called once, when the room closes. */
@@ -67,6 +69,7 @@ export interface RoomOptions {
 export class Room {
   readonly id: string;
   readonly name: string;
+  private readonly playlist: readonly Level[];
   private readonly transport: RoomTransport;
   private readonly scheduler: TickScheduler;
   private readonly onClosed: (room: Room) => void;
@@ -75,9 +78,11 @@ export class Room {
   /** Bullets fired since the last snapshot, sent with the next one so every shot is heard. */
   private pendingShots: BulletState[] = [];
 
-  constructor({ id, name, transport, scheduler, onClosed = () => {} }: RoomOptions) {
+  constructor({ id, name, playlist, transport, scheduler, onClosed = () => {} }: RoomOptions) {
+    if (playlist.length === 0) throw new Error('A room needs at least one level');
     this.id = id;
     this.name = name;
+    this.playlist = playlist;
     this.transport = transport;
     this.scheduler = scheduler;
     this.onClosed = onClosed;
@@ -180,16 +185,21 @@ export class Room {
   /** One simulation tick; the scheduler calls it at 60 Hz. */
   tick(): void {
     if (this.phase.kind !== 'playing') return;
-    const stepped = stepWorld(this.phase.world, this.takeInputs(this.phase.world.levelIndex));
+    const { levelIndex } = this.phase.world;
+    const stepped = stepWorld(
+      this.phase.world,
+      this.takeInputs(levelIndex),
+      this.levelAt(levelIndex),
+    );
     let world = stepped.world;
     for (const e of stepped.events) if (e.type === 'shot') this.pendingShots.push(e.bullet);
     const completed = stepped.events.find((e) => e.type === 'levelCompleted');
     if (completed) {
-      if (isLastLevel(world.levelIndex)) {
+      if (levelIndex === this.playlist.length - 1) {
         this.endMatch(world, 'completed');
         return;
       }
-      world = startLevel(world, world.levelIndex + 1);
+      world = startLevel(world, levelIndex + 1, this.levelAt(levelIndex + 1));
       this.phase = { kind: 'playing', world };
       this.resetInputs();
       this.sendLevelStarted(world);
@@ -239,7 +249,10 @@ export class Room {
     const { ready } = this.phase;
     if (this.participants.size < MIN_PLAYERS_TO_START) return;
     for (const id of this.participants.keys()) if (!ready.has(id)) return;
-    const world = createWorld([...this.participants].map(([id, p]) => ({ id, side: p.side })));
+    const world = createWorld(
+      [...this.participants].map(([id, p]) => ({ id, side: p.side })),
+      this.levelAt(0),
+    );
     this.phase = { kind: 'playing', world };
     this.resetInputs();
     this.sendLevelStarted(world);
@@ -292,10 +305,17 @@ export class Room {
     this.broadcast((id) =>
       this.transport.send(id, 'levelStarted', {
         levelIndex: world.levelIndex,
+        level: this.levelAt(world.levelIndex).data,
         snapshot: toSnapshot(world, this.ackOf(id)),
         nicknames,
       }),
     );
+  }
+
+  private levelAt(index: number): Level {
+    const level = this.playlist[index];
+    if (!level) throw new RangeError(`Playlist has no level ${index}`);
+    return level;
   }
 
   private ackOf(id: PlayerId): number {

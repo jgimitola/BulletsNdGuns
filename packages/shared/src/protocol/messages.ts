@@ -1,3 +1,4 @@
+import type { PlayableLevelData } from '../levels/level-data.ts';
 import type { BulletState, PlayerId, PlayerState } from '../simulation/player.ts';
 import type { WorldState } from '../simulation/world.ts';
 import type { InputFrame } from './input.ts';
@@ -31,7 +32,10 @@ export interface MatchEnded extends MatchScores {
 }
 
 export interface LevelStarted {
+  /** Index in the room's playlist. */
   levelIndex: number;
+  /** The level to draw and predict with; clients don't bundle levels. */
+  level: PlayableLevelData;
   snapshot: Snapshot;
   /** Nickname of every player in the match. Nobody joins mid-match, so it never grows. */
   nicknames: Record<PlayerId, string>;
