@@ -4,7 +4,7 @@ import type { BulletState, PlayerId, PlayerState } from '../simulation/player.ts
 import type { WorldState } from '../simulation/world.ts';
 import { parseWith } from '../validation.ts';
 import type { InputFrame } from './input.ts';
-import type { RoomAck, RoomLobby } from './rooms.ts';
+import type { NicknameAck, RoomAck, RoomLobby } from './rooms.ts';
 
 /** `z.int()` only takes safe integers. */
 export const inputFrameSchema = z.object({
@@ -58,10 +58,14 @@ export interface ServerToClientEvents {
   levelStarted: (payload: LevelStarted) => void;
   snapshot: (snapshot: Snapshot) => void;
   matchEnded: (payload: MatchEnded) => void;
+  /** A registered player took this guest's nickname; they must claim another before joining a room. */
+  nicknameRevoked: (nickname: string) => void;
 }
 
 /** Payloads are `unknown`: the server validates them with the parse functions. */
 export interface ClientToServerEvents {
+  /** Guests only: account sockets use their account's nickname. */
+  claimNickname: (request: unknown, ack: (result: NicknameAck) => void) => void;
   createRoom: (request: unknown, ack: (result: RoomAck) => void) => void;
   joinRoom: (request: unknown, ack: (result: RoomAck) => void) => void;
   leaveRoom: () => void;

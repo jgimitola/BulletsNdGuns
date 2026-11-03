@@ -39,9 +39,10 @@ const network = new NetworkClient();
 const ui = createUiStore(
   {
     sendReady: () => network.sendReady(),
-    createRoom: (name, nickname) => network.createRoom(name, nickname),
-    joinRoom: (roomId, nickname) => network.joinRoom(roomId, nickname),
+    createRoom: (name) => network.createRoom(name),
+    joinRoom: (roomId) => network.joinRoom(roomId),
     leaveRoom: () => network.leaveRoom(),
+    claimNickname: (nickname) => network.claimNickname(nickname),
     saveNickname: (nickname) => saveSetting(NICKNAME_STORAGE_KEY, nickname),
     changeLocale: (next) => {
       applyLocale(next);

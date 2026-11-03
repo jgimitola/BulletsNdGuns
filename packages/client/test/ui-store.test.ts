@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { RoomLobby } from '@bng/shared';
-import type { RoomResponse } from '../src/net/network-client.ts';
+import type { NicknameResponse, RoomResponse } from '../src/net/network-client.ts';
 import { createUiStore, type UiActions } from '../src/ui/store.ts';
 
 const lobby: RoomLobby = {
@@ -15,6 +15,9 @@ function setup(over: Partial<UiActions> = {}, nickname = 'Ana') {
     createRoom: vi.fn(async (): Promise<RoomResponse> => ({ ok: true, lobby })),
     joinRoom: vi.fn(async (): Promise<RoomResponse> => ({ ok: true, lobby })),
     leaveRoom: vi.fn(),
+    claimNickname: vi.fn(
+      async (nickname: string): Promise<NicknameResponse> => ({ ok: true, nickname }),
+    ),
     saveNickname: vi.fn(),
     changeLocale: vi.fn(),
     ...over,
@@ -42,20 +45,51 @@ describe('ui store', () => {
     expect(actions.saveNickname).toHaveBeenCalledWith(' Beto ');
   });
 
-  it('openRooms needs a valid nickname', () => {
-    const { store } = setup({}, '   ');
+  it('openRooms needs a valid nickname', async () => {
+    const { store, actions } = setup({}, '   ');
     store.getState().setScreen('menu');
-    store.getState().openRooms();
+    await store.getState().openRooms();
     expect(store.getState().screen).toBe('menu');
+    expect(actions.claimNickname).not.toHaveBeenCalled();
     store.getState().setNickname('Ana');
-    store.getState().openRooms();
+    await store.getState().openRooms();
     expect(store.getState().screen).toBe('rooms');
   });
 
-  it('createRoom sends the trimmed nickname and enters the lobby', async () => {
+  it('a guest claims the trimmed nickname before seeing the rooms', async () => {
+    const { store, actions } = setup({}, ' Ana ');
+    store.getState().setScreen('menu');
+    await store.getState().openRooms();
+    expect(actions.claimNickname).toHaveBeenCalledWith('Ana');
+    expect(store.getState().screen).toBe('rooms');
+  });
+
+  it('a refused claim stays on the menu with the reason, until the nickname changes', async () => {
+    const { store } = setup({
+      claimNickname: vi.fn(
+        async (): Promise<NicknameResponse> => ({ ok: false, error: 'taken' }),
+      ),
+    });
+    store.getState().setScreen('menu');
+    await store.getState().openRooms();
+    expect(store.getState()).toMatchObject({ screen: 'menu', nicknameError: 'taken' });
+    store.getState().setNickname('Beto');
+    expect(store.getState().nicknameError).toBeNull();
+  });
+
+  it('a signed-in player goes to the rooms without claiming', async () => {
+    const { store, actions } = setup({}, '');
+    store.getState().setScreen('menu');
+    store.setState({ account: { email: 'a@b.co', nickname: 'Ana' } });
+    await store.getState().openRooms();
+    expect(actions.claimNickname).not.toHaveBeenCalled();
+    expect(store.getState().screen).toBe('rooms');
+  });
+
+  it('createRoom sends the room name and enters the lobby', async () => {
     const { store, actions } = setup({}, ' Ana ');
     await store.getState().createRoom('Sala de Ana');
-    expect(actions.createRoom).toHaveBeenCalledWith('Sala de Ana', 'Ana');
+    expect(actions.createRoom).toHaveBeenCalledWith('Sala de Ana');
     expect(store.getState()).toMatchObject({ screen: 'lobby', lobby, roomPending: false });
   });
 
@@ -169,6 +203,7 @@ describe('ui store locale', () => {
       sendReady: vi.fn(),
       createRoom: vi.fn(),
       joinRoom: vi.fn(),
+      claimNickname: vi.fn(),
       leaveRoom: vi.fn(),
       saveNickname: vi.fn(),
       changeLocale: vi.fn(),
@@ -189,6 +224,7 @@ describe('ui store ping', () => {
       sendReady: vi.fn(),
       createRoom: vi.fn(),
       joinRoom: vi.fn(),
+      claimNickname: vi.fn(),
       leaveRoom: vi.fn(),
       saveNickname: vi.fn(),
       changeLocale: vi.fn(),

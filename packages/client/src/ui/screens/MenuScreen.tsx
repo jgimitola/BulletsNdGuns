@@ -11,6 +11,7 @@ import { loadRoomsScreen } from './lazy-screens.ts';
 export function MenuScreen() {
   const store = useUiStore();
   const nickname = useUi((s) => s.nickname);
+  const nicknameError = useUi((s) => s.nicknameError);
   const valid = parseNickname(nickname) !== null;
   // The room list is the next screen: fetch its chunk now so JUGAR opens it without a wait.
   useEffect(() => {
@@ -39,7 +40,7 @@ export function MenuScreen() {
         className="menu__form"
         onSubmit={(event) => {
           event.preventDefault();
-          store.getState().openRooms();
+          void store.getState().openRooms();
         }}
       >
         <label className="field">
@@ -59,6 +60,9 @@ export function MenuScreen() {
             {t('menu.nicknameHint', { max: NICKNAME_MAX_LENGTH })}
           </span>
         </label>
+        <p className="room-error" role="alert">
+          {nicknameError ? t(`nicknameError.${nicknameError}`) : ''}
+        </p>
         <button
           type="submit"
           className="pixel-button pixel-button--primary"

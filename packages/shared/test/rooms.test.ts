@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
   parseCreateRoom,
   parseJoinRoom,
+  parseClaimNickname,
   parseNickname,
   parseRoomName,
   nicknameSchema,
@@ -47,42 +48,36 @@ describe('parseRoomName', () => {
 });
 
 describe('parseCreateRoom', () => {
-  test('returns a fresh, trimmed request', () => {
+  test('returns a fresh, trimmed request; the nickname comes from the server', () => {
     const raw = { name: ' Sala ', nickname: ' Ana ', extra: true };
-    expect(parseCreateRoom(raw)).toEqual({ name: 'Sala', nickname: 'Ana' });
+    expect(parseCreateRoom(raw)).toEqual({ name: 'Sala' });
   });
 
-  test.each([
-    null,
-    'x',
-    [],
-    {},
-    { name: 'Sala' },
-    { nickname: 'Ana' },
-    { name: '', nickname: 'A' },
-  ])('rejects %j', (raw) => {
+  test.each([null, 'x', [], {}, { nickname: 'Ana' }, { name: '' }])('rejects %j', (raw) => {
     expect(parseCreateRoom(raw)).toBeNull();
   });
 });
 
 describe('parseJoinRoom', () => {
   test('returns a fresh request', () => {
-    expect(parseJoinRoom({ roomId: 'r1', nickname: 'Ana' })).toEqual({
-      roomId: 'r1',
-      nickname: 'Ana',
-    });
+    expect(parseJoinRoom({ roomId: 'r1', nickname: 'Ana' })).toEqual({ roomId: 'r1' });
   });
 
-  test.each([
-    null,
-    {},
-    { roomId: 'r1' },
-    { roomId: '', nickname: 'Ana' },
-    { roomId: 1, nickname: 'Ana' },
-    { roomId: 'x'.repeat(65), nickname: 'Ana' },
-    { roomId: 'r1', nickname: '' },
-  ])('rejects %j', (raw) => {
-    expect(parseJoinRoom(raw)).toBeNull();
+  test.each([null, {}, { roomId: '' }, { roomId: 1 }, { roomId: 'x'.repeat(65) }])(
+    'rejects %j',
+    (raw) => {
+      expect(parseJoinRoom(raw)).toBeNull();
+    },
+  );
+});
+
+describe('parseClaimNickname', () => {
+  test('returns the trimmed nickname', () => {
+    expect(parseClaimNickname({ nickname: ' Ana ', extra: 1 })).toEqual({ nickname: 'Ana' });
+  });
+
+  test.each([null, {}, { nickname: '' }, { nickname: 3 }])('rejects %j', (raw) => {
+    expect(parseClaimNickname(raw)).toBeNull();
   });
 });
 

@@ -42,9 +42,27 @@ async function register(nickname: string, email = `${nickname}@bng.test`): Promi
   return (res.headers.get('set-cookie') ?? '').split(';')[0] ?? '';
 }
 
-function newClient(): Client {
-  const c: Client = connect(url(), { transports: ['websocket'], forceNew: true });
+/** `cookie` is a session cookie, for a client that belongs to an account. */
+function newClient(cookie?: string): Client {
+  const c: Client = connect(url(), {
+    transports: ['websocket'],
+    forceNew: true,
+    ...(cookie ? { extraHeaders: { cookie } } : {}),
+  });
   clients.push(c);
+  return c;
+}
+
+/** A connected client signed in as a newly registered account. */
+async function account(nickname: string): Promise<Client> {
+  return connected(newClient(await register(nickname)));
+}
+
+/** A connected guest that has claimed `nickname`. */
+async function guest(nickname: string): Promise<Client> {
+  const c = await connected(newClient());
+  const claimed = await c.emitWithAck('claimNickname', { nickname });
+  if (!claimed.ok) throw new Error(`claim ${nickname}: ${claimed.error}`);
   return c;
 }
 
@@ -71,12 +89,11 @@ async function connected(c: Client): Promise<Client> {
   return c;
 }
 
-/** a creates a room, b joins it. Returns the room id. */
+/** a (an account) creates a room, b joins it. Returns the room id. */
 async function sharedRoom(a: Client, b: Client): Promise<string> {
-  await Promise.all([connected(a), connected(b)]);
-  const created = await a.emitWithAck('createRoom', { name: 'Sala', nickname: 'Ana' });
+  const created = await a.emitWithAck('createRoom', { name: 'Sala' });
   if (!created.ok) throw new Error(created.error);
-  const joined = await b.emitWithAck('joinRoom', { roomId: created.lobby.id, nickname: 'Beto' });
+  const joined = await b.emitWithAck('joinRoom', { roomId: created.lobby.id });
   if (!joined.ok) throw new Error(joined.error);
   return created.lobby.id;
 }
@@ -113,11 +130,106 @@ describe('accounts over HTTP', () => {
   });
 });
 
+describe('nicknames and permissions', () => {
+  test('a guest cannot create a room', async () => {
+    const g = await guest('Beto');
+    expect(await g.emitWithAck('createRoom', { name: 'Sala' })).toEqual({
+      ok: false,
+      error: 'signInRequired',
+    });
+  });
+
+  test('a guest must claim a nickname before joining', async () => {
+    const a = await account('Ana');
+    const created = await a.emitWithAck('createRoom', { name: 'Sala' });
+    if (!created.ok) throw new Error(created.error);
+    const g = await connected(newClient());
+    expect(await g.emitWithAck('joinRoom', { roomId: created.lobby.id })).toEqual({
+      ok: false,
+      error: 'noNickname',
+    });
+  });
+
+  test('two guests cannot share a nickname, whatever the case', async () => {
+    await guest('Beto');
+    const other = await connected(newClient());
+    expect(await other.emitWithAck('claimNickname', { nickname: 'beto' })).toEqual({
+      ok: false,
+      error: 'taken',
+    });
+  });
+
+  test("a guest cannot take a registered account's nickname, even offline", async () => {
+    await register('Ana');
+    const g = await connected(newClient());
+    expect(await g.emitWithAck('claimNickname', { nickname: 'ANA' })).toEqual({
+      ok: false,
+      error: 'taken',
+    });
+  });
+
+  test('an account socket cannot claim a guest nickname', async () => {
+    const a = await account('Ana');
+    expect(await a.emitWithAck('claimNickname', { nickname: 'Otro' })).toEqual({
+      ok: false,
+      error: 'invalid',
+    });
+  });
+
+  test("registering a guest's nickname revokes it, and the guest must pick another", async () => {
+    const host = await account('Ana');
+    const created = await host.emitWithAck('createRoom', { name: 'Sala' });
+    if (!created.ok) throw new Error(created.error);
+    const g = await guest('Cid');
+    const revoked = once<string>(g, 'nicknameRevoked');
+    await register('cid');
+    expect(await revoked).toBe('Cid');
+    expect(await g.emitWithAck('joinRoom', { roomId: created.lobby.id })).toEqual({
+      ok: false,
+      error: 'noNickname',
+    });
+    expect((await g.emitWithAck('claimNickname', { nickname: 'Cid2' })).ok).toBe(true);
+    expect((await g.emitWithAck('joinRoom', { roomId: created.lobby.id })).ok).toBe(true);
+  });
+
+  test('mid-match, a revoked guest keeps the old name inside the match', async () => {
+    const a = await account('Ana');
+    const b = await guest('Beto');
+    const roomId = await sharedRoom(a, b);
+    const started = once<LevelStarted>(b, 'levelStarted');
+    a.emit('ready');
+    b.emit('ready');
+    const first = await started;
+    const revoked = once<string>(b, 'nicknameRevoked');
+    await register('beto');
+    expect(await revoked).toBe('Beto');
+    expect(first.nicknames[b.id as string]).toBe('Beto');
+    expect((await listRooms()).find((r) => r.id === roomId)?.status).toBe('playing');
+    expect(b.connected).toBe(true);
+  });
+
+  test('a forged session cookie connects as a guest', async () => {
+    const forged = await connected(newClient('better-auth.session_token=forged'));
+    expect(await forged.emitWithAck('createRoom', { name: 'Sala' })).toEqual({
+      ok: false,
+      error: 'signInRequired',
+    });
+    expect((await forged.emitWithAck('claimNickname', { nickname: 'Dani' })).ok).toBe(true);
+  });
+
+  test('flooding nickname claims is disconnected', async () => {
+    const g = await connected(newClient());
+    const kicked = once<string>(g, 'disconnect');
+    for (let i = 0; i < 30; i++) g.emit('claimNickname', { nickname: `G${i}` }, () => {});
+    expect(await kicked).toBe('io server disconnect');
+  });
+});
+
 describe('server integration', () => {
   test('nobody is in a room on connect; GET /api/rooms lists created rooms', async () => {
-    const a = await connected(newClient());
+    const a = await account('Ana');
     expect(await listRooms()).toEqual([]);
-    const created = await a.emitWithAck('createRoom', { name: ' Sala ', nickname: ' Ana ' });
+    const created = await a.emitWithAck('createRoom', { name: ' Sala ' });
     expect(created).toEqual({
       ok: true,
       lobby: {
@@ -134,12 +246,12 @@ describe('server integration', () => {
   });
 
   test('invalid requests are refused and leave the player roomless', async () => {
-    const a = await connected(newClient());
-    expect(await a.emitWithAck('createRoom', { name: '', nickname: 'Ana' })).toEqual({
+    const a = await account('Ana');
+    expect(await a.emitWithAck('createRoom', { name: '' })).toEqual({
       ok: false,
       error: 'invalid',
     });
-    expect(await a.emitWithAck('joinRoom', { roomId: 'nope', nickname: 'Ana' })).toEqual({
+    expect(await a.emitWithAck('joinRoom', { roomId: 'nope' })).toEqual({
       ok: false,
       error: 'notFound',
     });
@@ -147,8 +259,8 @@ describe('server integration', () => {
   });
 
   test('two players ready → level 1 starts with nicknames; a third cannot join', async () => {
-    const a = newClient();
-    const b = newClient();
+    const a = await account('Ana');
+    const b = await guest('Beto');
     const lobbyA = once<RoomLobby>(a, 'lobbyUpdated');
     const roomId = await sharedRoom(a, b);
     expect((await lobbyA).players).toHaveLength(1);
@@ -162,8 +274,8 @@ describe('server integration', () => {
     expect(sa.snapshot.players).toHaveLength(2);
     expect(sa.nicknames).toEqual({ [a.id as string]: 'Ana', [b.id as string]: 'Beto' });
 
-    const c = await connected(newClient());
-    expect(await c.emitWithAck('joinRoom', { roomId, nickname: 'Carla' })).toEqual({
+    const c = await guest('Carla');
+    expect(await c.emitWithAck('joinRoom', { roomId })).toEqual({
       ok: false,
       error: 'inProgress',
     });
@@ -174,8 +286,8 @@ describe('server integration', () => {
   });
 
   test('a rival disconnecting mid-match ends it: rivalsLeft, room gone, player free', async () => {
-    const a = newClient();
-    const b = newClient();
+    const a = await account('Ana');
+    const b = await guest('Beto');
     await startMatch(a, b);
     const ended = once<MatchEnded>(a, 'matchEnded');
     b.disconnect();
@@ -183,7 +295,7 @@ describe('server integration', () => {
     expect(payload.reason).toBe('rivalsLeft');
     expect(payload.scores.map((s) => s.id)).toEqual([a.id]);
     expect(await listRooms()).toEqual([]);
-    const again = await a.emitWithAck('createRoom', { name: 'Otra', nickname: 'Ana' });
+    const again = await a.emitWithAck('createRoom', { name: 'Otra' });
     expect(again.ok).toBe(true);
   });
 
@@ -193,15 +305,15 @@ describe('server integration', () => {
   });
 
   test('leaveRoom in the lobby closes an emptied room', async () => {
-    const a = await connected(newClient());
-    await a.emitWithAck('createRoom', { name: 'Sala', nickname: 'Ana' });
+    const a = await account('Ana');
+    await a.emitWithAck('createRoom', { name: 'Sala' });
     a.emit('leaveRoom');
     await expect.poll(listRooms).toEqual([]);
   });
 
   test('server decides hits: a shoots b across level 1', async () => {
-    const a = newClient();
-    const b = newClient();
+    const a = await account('Ana');
+    const b = await guest('Beto');
     await startMatch(a, b);
     const aId = a.id as string;
     const bId = b.id as string;
@@ -267,12 +379,12 @@ describe('server integration', () => {
   }, 15000);
 
   test('a client flooding inputs is disconnected; the others keep receiving snapshots', async () => {
-    const a = newClient();
-    const b = newClient();
+    const a = await account('Ana');
+    const b = await guest('Beto');
     // A third player keeps the match alive once a is gone.
-    const c = await connected(newClient());
+    const c = await guest('Carla');
     const roomId = await sharedRoom(a, b);
-    await c.emitWithAck('joinRoom', { roomId, nickname: 'Carla' });
+    await c.emitWithAck('joinRoom', { roomId });
     const started = Promise.all([a, b, c].map((x) => once(x, 'levelStarted')));
     for (const x of [a, b, c]) x.emit('ready');
     await started;

@@ -2,17 +2,21 @@ import { io, type Socket } from 'socket.io-client';
 import type {
   ClientToServerEvents,
   InputFrame,
+  NicknameAck,
   RoomAck,
   RoomError,
   RoomId,
   ServerToClientEvents,
 } from '@bng/shared';
 
-/** How long a create/join may wait for the server before the UI gives up on it. */
+/** How long a create/join/claim may wait for the server before the UI gives up on it. */
 const ROOM_ACK_TIMEOUT_MS = 5000;
 
 /** A room ack, or `noResponse` when the server did not answer in time. */
 export type RoomResponse = RoomAck | { ok: false; error: RoomError | 'noResponse' };
+
+/** A nickname ack, or `noResponse` when the server did not answer in time. */
+export type NicknameResponse = NicknameAck | { ok: false; error: 'noResponse' };
 
 export class NetworkClient {
   private readonly socket: Socket<ServerToClientEvents, ClientToServerEvents> = io();
@@ -41,12 +45,23 @@ export class NetworkClient {
     this.socket.on('connect', handler);
   }
 
-  createRoom(name: string, nickname: string): Promise<RoomResponse> {
-    return this.withTimeout('createRoom', { name, nickname });
+  createRoom(name: string): Promise<RoomResponse> {
+    return this.withTimeout('createRoom', { name });
   }
 
-  joinRoom(roomId: RoomId, nickname: string): Promise<RoomResponse> {
-    return this.withTimeout('joinRoom', { roomId, nickname });
+  joinRoom(roomId: RoomId): Promise<RoomResponse> {
+    return this.withTimeout('joinRoom', { roomId });
+  }
+
+  /** Guests only: the nickname this connection plays under. */
+  async claimNickname(nickname: string): Promise<NicknameResponse> {
+    try {
+      return await this.socket
+        .timeout(ROOM_ACK_TIMEOUT_MS)
+        .emitWithAck('claimNickname', { nickname });
+    } catch {
+      return { ok: false, error: 'noResponse' };
+    }
   }
 
   leaveRoom(): void {

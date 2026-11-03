@@ -3,16 +3,25 @@ import {
   parseNickname,
   type MatchEndReason,
   type MatchResult,
+  type NicknameError,
   type PlayerId,
   type RoomId,
   type RoomLobby,
 } from '@bng/shared';
 import type { Locale } from '../i18n/index.ts';
-import type { RoomResponse } from '../net/network-client.ts';
+import type { NicknameResponse, RoomResponse } from '../net/network-client.ts';
 
 export type Screen = 'connecting' | 'loading' | 'menu' | 'rooms' | 'lobby' | 'level' | 'gameOver';
 
 export type RoomActionError = Extract<RoomResponse, { ok: false }>['error'];
+
+export type NicknameClaimError = NicknameError | 'noResponse';
+
+/** The signed-in player. */
+export interface Account {
+  email: string;
+  nickname: string;
+}
 
 /**
  * Everything the HTML layer shows. Phaser scenes write here, React components read with selectors,
@@ -31,6 +40,10 @@ export interface UiState {
   locale: Locale;
   /** The nickname field as typed; `parseNickname` decides whether it can be used. */
   nickname: string;
+  /** Why the server refused the guest nickname, until the field changes. */
+  nicknameError: NicknameClaimError | null;
+  /** Null for guests. */
+  account: Account | null;
   /** The room this player is in, while on the lobby screen and during its match. */
   lobby: RoomLobby | null;
   /** A create or join request is waiting for the server. */
@@ -46,8 +59,8 @@ export interface UiState {
   setPlayerId(playerId: PlayerId): void;
   setLocale(locale: Locale): void;
   setNickname(nickname: string): void;
-  /** Menu -> room list, only with a valid nickname. */
-  openRooms(): void;
+  /** Menu -> room list: accounts go straight there, guests first claim their nickname. */
+  openRooms(): Promise<void>;
   createRoom(name: string): Promise<void>;
   joinRoom(roomId: RoomId): Promise<void>;
   clearRoomError(): void;
@@ -63,9 +76,10 @@ export type UiStore = StoreApi<UiState>;
 
 export interface UiActions {
   sendReady(): void;
-  createRoom(name: string, nickname: string): Promise<RoomResponse>;
-  joinRoom(roomId: RoomId, nickname: string): Promise<RoomResponse>;
+  createRoom(name: string): Promise<RoomResponse>;
+  joinRoom(roomId: RoomId): Promise<RoomResponse>;
   leaveRoom(): void;
+  claimNickname(nickname: string): Promise<NicknameResponse>;
   saveNickname(nickname: string): void;
   /** Switches the i18n module to `locale` and remembers it. */
   changeLocale(locale: Locale): void;
@@ -77,11 +91,10 @@ export function createUiStore(
 ): UiStore {
   return createStore<UiState>()((set, get) => {
     /** Runs one create/join request and moves to the lobby on success. */
-    const enterRoom = async (request: (nickname: string) => Promise<RoomResponse>) => {
-      const nickname = parseNickname(get().nickname);
-      if (get().roomPending || nickname === null) return;
+    const enterRoom = async (request: () => Promise<RoomResponse>) => {
+      if (get().roomPending) return;
       set({ roomPending: true, roomError: null });
-      const response = await request(nickname);
+      const response = await request();
       if (response.ok) {
         set({ roomPending: false, lobby: response.lobby, waiting: false, screen: 'lobby' });
         return;
@@ -99,6 +112,8 @@ export function createUiStore(
       playerId: null,
       locale: initial.locale ?? 'es',
       nickname: initial.nickname ?? '',
+      nicknameError: null,
+      account: null,
       lobby: null,
       roomPending: false,
       roomError: null,
@@ -122,15 +137,23 @@ export function createUiStore(
         set({ locale });
       },
       setNickname: (nickname) => {
-        set({ nickname });
+        set({ nickname, nicknameError: null });
         actions.saveNickname(nickname);
       },
-      openRooms: () => {
-        if (parseNickname(get().nickname) === null) return;
+      openRooms: async () => {
+        if (!get().account) {
+          const nickname = parseNickname(get().nickname);
+          if (nickname === null) return;
+          const response = await actions.claimNickname(nickname);
+          if (!response.ok) {
+            set({ nicknameError: response.error });
+            return;
+          }
+        }
         set({ screen: 'rooms', roomError: null });
       },
-      createRoom: (name) => enterRoom((nickname) => actions.createRoom(name, nickname)),
-      joinRoom: (roomId) => enterRoom((nickname) => actions.joinRoom(roomId, nickname)),
+      createRoom: (name) => enterRoom(() => actions.createRoom(name)),
+      joinRoom: (roomId) => enterRoom(() => actions.joinRoom(roomId)),
       clearRoomError: () => set({ roomError: null }),
       setLobby: (lobby) => {
         if (get().lobby?.id === lobby.id) set({ lobby });

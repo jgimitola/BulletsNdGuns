@@ -29,20 +29,36 @@ export interface RoomLobby {
   players: LobbyPlayer[];
 }
 
-export type RoomError = 'invalid' | 'notFound' | 'inProgress' | 'alreadyInRoom' | 'tooManyRooms';
+/**
+ * `signInRequired`: guests can't create rooms. `noNickname`: a guest must claim a nickname (again,
+ * after losing it to an account) before joining.
+ */
+export type RoomError =
+  | 'invalid'
+  | 'notFound'
+  | 'inProgress'
+  | 'alreadyInRoom'
+  | 'tooManyRooms'
+  | 'signInRequired'
+  | 'noNickname';
 
 /** Why a guest could not claim a nickname. */
 export type NicknameError = 'invalid' | 'taken';
 
 export type RoomAck = { ok: true; lobby: RoomLobby } | { ok: false; error: RoomError };
 
+export type NicknameAck = { ok: true; nickname: string } | { ok: false; error: NicknameError };
+
+/** The player's nickname is the one they claimed (guests) or their account's, never the request's. */
 export interface CreateRoomRequest {
   name: string;
-  nickname: string;
 }
 
 export interface JoinRoomRequest {
   roomId: RoomId;
+}
+
+export interface ClaimNicknameRequest {
   nickname: string;
 }
 
@@ -66,13 +82,15 @@ export const roomNameSchema = labelSchema(ROOM_NAME_MAX_LENGTH);
 
 export const createRoomSchema = z.object({
   name: roomNameSchema,
-  nickname: nicknameSchema,
 }) satisfies z.ZodType<CreateRoomRequest>;
 
 export const joinRoomSchema = z.object({
   roomId: z.string().min(1).max(64),
-  nickname: nicknameSchema,
 }) satisfies z.ZodType<JoinRoomRequest>;
+
+export const claimNicknameSchema = z.object({
+  nickname: nicknameSchema,
+}) satisfies z.ZodType<ClaimNicknameRequest>;
 
 export function parseNickname(raw: unknown): string | null {
   return parseWith(nicknameSchema, raw);
@@ -102,4 +120,9 @@ export function parseCreateRoom(raw: unknown): CreateRoomRequest | null {
 /** Validates an untrusted `joinRoom` payload. Returns a fresh request, or null. Never throws. */
 export function parseJoinRoom(raw: unknown): JoinRoomRequest | null {
   return parseWith(joinRoomSchema, raw);
+}
+
+/** Validates an untrusted `claimNickname` payload. Returns a fresh request, or null. Never throws. */
+export function parseClaimNickname(raw: unknown): ClaimNicknameRequest | null {
+  return parseWith(claimNicknameSchema, raw);
 }
