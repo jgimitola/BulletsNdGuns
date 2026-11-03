@@ -185,7 +185,7 @@ How the store behaves:
 
 ```ts
 export type ServiceResult<T> = { ok: true; value: T } | { ok: false; error: LevelError };
-export const MAX_LEVELS_PER_ACCOUNT = 100;
+export const MAX_LEVELS_PER_ACCOUNT = 10; // user's decision
 export class LevelService {
   constructor(store: LevelStore);
   /** Upserts CLASSIC_LEVELS; called on server start. */
@@ -240,7 +240,7 @@ HTTP routes, mounted at `/api/levels` before the `/api` 404, using `express.json
   - Ana's `update` of `classic-1` is `forbidden`.
   - Publishing a draft with no portal is `notPublishable`.
   - Updating a published level to data without a right spawn is `notPublishable`, and the stored level is unchanged.
-  - `create` beyond `MAX_LEVELS_PER_ACCOUNT` is `tooManyLevels`. Use a store with 100 seeded rows.
+  - `create` beyond `MAX_LEVELS_PER_ACCOUNT` is `tooManyLevels`. Seed 10 levels for the author first.
   - Beto duplicates Ana's published level: a new id, author Beto, a draft, the same data. Duplicating Ana's draft is `notFound`.
   - `list` gives the summary shapes: the `tiles` string has length 500, a built-in's author is `'BulletsNdGuns'`, and `nextOffset` is 20 when there are 21 or more levels and null otherwise.
   - `loadPlaylist`:
