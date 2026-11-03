@@ -1,20 +1,31 @@
 import { CLASSIC_LEVELS, MAX_PLAYLIST_LENGTH } from '@bng/shared';
 
-/** A level in the create-room playlist; the name is kept so chips need no lookup. */
-export interface PlaylistItem {
+/** A level the browser lists: what the playlist needs to know about it. */
+export interface LevelChoice {
   id: string;
   name: string;
 }
 
+/**
+ * A level in the create-room playlist; the name is kept so chips need no lookup. `key` is unique
+ * per chip and follows it when it moves, so React keeps the focused chip focused.
+ */
+export interface PlaylistItem extends LevelChoice {
+  key: number;
+}
+
+let nextKey = 1;
+const toItem = (level: LevelChoice): PlaylistItem => ({ ...level, key: nextKey++ });
+
 /** What a new room plays unless the creator changes it: the three classics. */
 export function defaultPlaylist(): PlaylistItem[] {
-  return CLASSIC_LEVELS.map((l) => ({ id: l.slug, name: l.name }));
+  return CLASSIC_LEVELS.map((l) => toItem({ id: l.slug, name: l.name }));
 }
 
 /** Clicking a level in the browser: removes it (every copy) when present, else adds it at the end. */
-export function toggleLevel(list: readonly PlaylistItem[], item: PlaylistItem): PlaylistItem[] {
-  if (list.some((l) => l.id === item.id)) return list.filter((l) => l.id !== item.id);
-  return list.length < MAX_PLAYLIST_LENGTH ? [...list, item] : [...list];
+export function toggleLevel(list: readonly PlaylistItem[], level: LevelChoice): PlaylistItem[] {
+  if (list.some((l) => l.id === level.id)) return list.filter((l) => l.id !== level.id);
+  return list.length < MAX_PLAYLIST_LENGTH ? [...list, toItem(level)] : [...list];
 }
 
 export function removeAt(list: readonly PlaylistItem[], index: number): PlaylistItem[] {

@@ -51,6 +51,8 @@ const isVisibleTo = (record: LevelRecord, viewerId: string | null): boolean =>
  */
 export class LevelService {
   private readonly store: LevelStore;
+  /** The tail of each author's queue of writes; see `serialized`. */
+  private readonly writeQueues = new Map<string, Promise<unknown>>();
 
   constructor(store: LevelStore) {
     this.store = store;
@@ -62,17 +64,15 @@ export class LevelService {
   }
 
   async list(viewerId: string | null, query: LevelQuery): Promise<LevelPage> {
-    // One extra row says whether another page follows.
-    const records = await this.store.list({
+    const { records, more } = await this.store.list({
       viewerId,
       mineOnly: query.mine,
       search: query.search,
       offset: query.offset,
-      limit: LEVELS_PAGE_SIZE + 1,
+      limit: LEVELS_PAGE_SIZE,
     });
-    const more = records.length > LEVELS_PAGE_SIZE;
     return {
-      levels: records.slice(0, LEVELS_PAGE_SIZE).map(toSummary),
+      levels: records.map(toSummary),
       nextOffset: more ? query.offset + LEVELS_PAGE_SIZE : null,
     };
   }
@@ -82,14 +82,63 @@ export class LevelService {
     return record ? ok(toDetail(record)) : fail('notFound');
   }
 
-  async create(authorId: string, write: LevelWrite): Promise<ServiceResult<LevelDetail>> {
+  create(authorId: string, write: LevelWrite): Promise<ServiceResult<LevelDetail>> {
+    return this.serialized(authorId, () => this.createNow(authorId, write));
+  }
+
+  update(authorId: string, id: LevelId, write: LevelWrite): Promise<ServiceResult<LevelDetail>> {
+    return this.serialized(authorId, () => this.updateNow(authorId, id, write));
+  }
+
+  setPublished(
+    authorId: string,
+    id: LevelId,
+    published: boolean,
+  ): Promise<ServiceResult<LevelDetail>> {
+    return this.serialized(authorId, () => this.setPublishedNow(authorId, id, published));
+  }
+
+  delete(authorId: string, id: LevelId): Promise<ServiceResult<null>> {
+    return this.serialized(authorId, () => this.deleteNow(authorId, id));
+  }
+
+  /** A draft copy, owned by the caller, of any level they can see (built-ins included). */
+  duplicate(authorId: string, id: LevelId): Promise<ServiceResult<LevelDetail>> {
+    return this.serialized(authorId, async () => {
+      const source = await this.visible(authorId, id);
+      if (!source) return fail('notFound');
+      return this.createNow(authorId, { name: source.name, data: source.data });
+    });
+  }
+
+  /**
+   * Runs one author's writes one at a time. A check and the write it guards are separate store
+   * calls, so without this a burst of requests could all pass the level cap, or a save and a
+   * publish could each check a state the other is changing. The server is one process, so an
+   * in-memory queue is enough for any store.
+   */
+  private serialized<T>(authorId: string, write: () => Promise<T>): Promise<T> {
+    const previous = this.writeQueues.get(authorId) ?? Promise.resolve();
+    const run = previous.then(write, write);
+    const tail = run.catch(() => {});
+    this.writeQueues.set(authorId, tail);
+    void tail.then(() => {
+      if (this.writeQueues.get(authorId) === tail) this.writeQueues.delete(authorId);
+    });
+    return run;
+  }
+
+  private async createNow(
+    authorId: string,
+    write: LevelWrite,
+  ): Promise<ServiceResult<LevelDetail>> {
     if ((await this.store.countByAuthor(authorId)) >= MAX_LEVELS_PER_ACCOUNT) {
       return fail('tooManyLevels');
     }
     return ok(toDetail(await this.store.create(authorId, write)));
   }
 
-  async update(
+  private async updateNow(
     authorId: string,
     id: LevelId,
     write: LevelWrite,
@@ -102,7 +151,7 @@ export class LevelService {
     return updated ? ok(toDetail(updated)) : fail('notFound');
   }
 
-  async setPublished(
+  private async setPublishedNow(
     authorId: string,
     id: LevelId,
     published: boolean,
@@ -114,18 +163,11 @@ export class LevelService {
     return ok(toDetail({ ...owned.value, published }));
   }
 
-  async delete(authorId: string, id: LevelId): Promise<ServiceResult<null>> {
+  private async deleteNow(authorId: string, id: LevelId): Promise<ServiceResult<null>> {
     const owned = await this.owned(authorId, id);
     if (!owned.ok) return owned;
     await this.store.delete(id);
     return ok(null);
-  }
-
-  /** A draft copy, owned by the caller, of any level they can see (built-ins included). */
-  async duplicate(authorId: string, id: LevelId): Promise<ServiceResult<LevelDetail>> {
-    const source = await this.visible(authorId, id);
-    if (!source) return fail('notFound');
-    return this.create(authorId, { name: source.name, data: source.data });
   }
 
   /**
@@ -136,13 +178,14 @@ export class LevelService {
     viewerId: string,
     ids: readonly LevelId[],
   ): Promise<ServiceResult<PlaylistLevel[]>> {
-    const playlist: PlaylistLevel[] = [];
-    for (const id of ids) {
+    // A level repeated in the playlist is read and built once; the room never changes it.
+    const loaded = new Map<LevelId, PlaylistLevel>();
+    for (const id of new Set(ids)) {
       const record = await this.visible(viewerId, id);
       if (!record || !isPlayable(record.data)) return fail('levelUnavailable');
-      playlist.push({ name: record.name, level: buildLevel(record.data) });
+      loaded.set(id, { name: record.name, level: buildLevel(record.data) });
     }
-    return ok(playlist);
+    return ok(ids.map((id) => loaded.get(id) as PlaylistLevel));
   }
 
   private async visible(viewerId: string | null, id: LevelId): Promise<LevelRecord | null> {

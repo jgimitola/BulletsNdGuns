@@ -28,6 +28,11 @@ export class RoomManager {
     return [...this.rooms.values()].map((room) => room.summary());
   }
 
+  /** No room can be created until one closes. */
+  isFull(): boolean {
+    return this.rooms.size >= MAX_ROOMS;
+  }
+
   roomOf(playerId: PlayerId): Room | undefined {
     return this.roomOfPlayer.get(playerId);
   }

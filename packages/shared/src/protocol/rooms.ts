@@ -47,7 +47,8 @@ export type RoomError =
   | 'tooManyRooms'
   | 'signInRequired'
   | 'noNickname'
-  | 'levelUnavailable';
+  | 'levelUnavailable'
+  | 'serverError';
 
 /** Why a guest could not claim a nickname. */
 export type NicknameError = 'invalid' | 'taken';

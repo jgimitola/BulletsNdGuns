@@ -197,3 +197,68 @@ describe('playlists', () => {
     expect(errorOf(await service.loadPlaylist(beto, ['nope']))).toBe('levelUnavailable');
   });
 });
+
+describe('concurrent writes', () => {
+  test('a burst of creates cannot get past the cap', async () => {
+    const results = await Promise.all(
+      Array.from({ length: 20 }, (_, i) => service.create(ana, write(`L${i}`))),
+    );
+    expect(results.filter((r) => r.ok)).toHaveLength(MAX_LEVELS_PER_ACCOUNT);
+    const mine = await service.list(ana, { search: '', mine: true, offset: 0 });
+    expect(mine.levels).toHaveLength(MAX_LEVELS_PER_ACCOUNT);
+  });
+
+  test('a burst of duplicates cannot get past the cap either', async () => {
+    const results = await Promise.all(
+      Array.from({ length: 20 }, () => service.duplicate(ana, 'classic-1')),
+    );
+    expect(results.filter((r) => r.ok)).toHaveLength(MAX_LEVELS_PER_ACCOUNT);
+  });
+
+  test('a save racing a publish never leaves an unplayable level published', async () => {
+    const level = value(await service.create(ana, write('Torre')));
+    await Promise.all([
+      service.update(ana, level.id, write('Torre', noPortal)),
+      service.setPublished(ana, level.id, true),
+    ]);
+    const stored = value(await service.get(ana, level.id));
+    expect(stored.published && !stored.playable).toBe(false);
+  });
+});
+
+test('a corrupt row in the first page does not end the paging early', async () => {
+  const ids: string[] = [];
+  for (const author of [ana, beto]) {
+    for (let i = 0; i < 10; i++) {
+      const level = value(await service.create(author, write(`L${i}`)));
+      await service.setPublished(author, level.id, true);
+      ids.push(level.id);
+    }
+  }
+  await db.kysely
+    .updateTable('level')
+    .set({ data: 'not json' })
+    .where('id', '=', ids[19]!)
+    .execute();
+  // 3 built-ins + 20 levels, one of them unreadable: 22 to show over two pages.
+  const first = await service.list(null, { search: '', mine: false, offset: 0 });
+  expect(first.nextOffset).toBe(LEVELS_PAGE_SIZE);
+  const second = await service.list(null, { search: '', mine: false, offset: LEVELS_PAGE_SIZE });
+  expect(first.levels.length + second.levels.length).toBe(22);
+  expect(second.nextOffset).toBeNull();
+});
+
+test('a playlist that repeats a level reads and builds it once', async () => {
+  const store = kyselyLevelStore(db);
+  let reads = 0;
+  const counting = new LevelService({
+    ...store,
+    get: (id) => {
+      reads++;
+      return store.get(id);
+    },
+  });
+  const playlist = value(await counting.loadPlaylist(ana, Array<string>(10).fill('classic-1')));
+  expect(playlist).toHaveLength(10);
+  expect(reads).toBe(1);
+});

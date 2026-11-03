@@ -46,12 +46,12 @@ function filter(over: Partial<LevelListFilter> = {}): LevelListFilter {
   return { viewerId: null, mineOnly: false, search: '', offset: 0, limit: 50, ...over };
 }
 
-const ids = async (f: LevelListFilter) => (await store.list(f)).map((l) => l.name);
+const ids = async (f: LevelListFilter) => (await store.list(f)).records.map((l) => l.name);
 
 describe('migrations', () => {
   test('running them again changes nothing', async () => {
     await migrateGameTables(db);
-    expect(await store.list(filter())).toEqual([]);
+    expect(await store.list(filter())).toEqual({ records: [], more: false });
   });
 });
 
@@ -60,7 +60,7 @@ describe('built-in levels', () => {
     for (const level of CLASSIC_LEVELS) await store.upsertBuiltin(level);
     const draft = await store.create(ana, { name: 'Torre', data });
     await store.setPublished(draft.id, true);
-    const listed = await store.list(filter());
+    const listed = (await store.list(filter())).records;
     expect(listed.map((l) => l.id)).toEqual(['classic-1', 'classic-2', 'classic-3', draft.id]);
     expect(listed[0]).toMatchObject({
       builtin: true,

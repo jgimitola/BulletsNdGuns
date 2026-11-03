@@ -21,8 +21,7 @@ export function PlaylistChips({
       <ol className="playlist__chips" aria-label={t('createRoom.playlist')}>
         {items.map((item, index) => (
           <li
-            // Repeats share an id, so the position keeps keys unique.
-            key={`${index}-${item.id}`}
+            key={item.key}
             className={`playlist__chip${dragged === index ? ' playlist__chip--dragged' : ''}`}
             draggable
             tabIndex={0}

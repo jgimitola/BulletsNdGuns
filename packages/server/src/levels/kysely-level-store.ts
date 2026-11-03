@@ -79,7 +79,7 @@ export function kyselyLevelStore(db: Database, now: () => number = Date.now): Le
 
   return {
     async list({ viewerId, mineOnly, search, offset, limit }) {
-      if (mineOnly && viewerId === null) return [];
+      if (mineOnly && viewerId === null) return { records: [], more: false };
       let query = select();
       if (mineOnly) {
         query = query.where('level.author_id', '=', viewerId);
@@ -103,10 +103,17 @@ export function kyselyLevelStore(db: Database, now: () => number = Date.now): Le
         .orderBy(sql`case when ${sql.ref('level.builtin')} = 1 then ${sql.ref('level.id')} end`)
         .orderBy('level.updated_at', 'desc')
         .orderBy('level.id')
-        .limit(limit)
+        // One extra row says whether another page follows.
+        .limit(limit + 1)
         .offset(offset)
         .execute();
-      return rows.map(toRecord).filter((r): r is LevelRecord => r !== null);
+      return {
+        records: rows
+          .slice(0, limit)
+          .map(toRecord)
+          .filter((r): r is LevelRecord => r !== null),
+        more: rows.length > limit,
+      };
     },
 
     get,

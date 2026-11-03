@@ -109,7 +109,16 @@ export function attachSocketGateway(io: GameServer, rooms: RoomManager, deps: Ga
       if (!account || nickname === null) return reply(ack, { ok: false, error: 'signInRequired' });
       // Fail fast before touching the database; the manager checks again after the wait.
       if (rooms.roomOf(socket.id)) return reply(ack, { ok: false, error: 'alreadyInRoom' });
-      const playlist = await deps.loadPlaylist(account.id, request.levelIds ?? DEFAULT_PLAYLIST);
+      // Loading levels is the costly part: a full server refuses before paying for it.
+      if (rooms.isFull()) return reply(ack, { ok: false, error: 'tooManyRooms' });
+      let playlist: ServiceResult<PlaylistLevel[]>;
+      try {
+        playlist = await deps.loadPlaylist(account.id, request.levelIds ?? DEFAULT_PLAYLIST);
+      } catch (error) {
+        // Socket.io ignores a handler's promise: an escaping rejection would take the server down.
+        console.error('createRoom: loading the playlist failed', error);
+        return reply(ack, { ok: false, error: 'serverError' });
+      }
       // A creator who left while the levels loaded must not leave an empty room behind.
       if (socket.disconnected) return;
       if (!playlist.ok) return reply(ack, { ok: false, error: 'levelUnavailable' });

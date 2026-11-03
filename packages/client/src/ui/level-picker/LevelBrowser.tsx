@@ -5,7 +5,7 @@ import { t } from '../../i18n/index.ts';
 import { fetchLevels, LEVELS_QUERY_KEY } from '../../net/levels-api.ts';
 import { useUi } from '../UiStoreContext.tsx';
 import { LevelThumbnail } from './LevelThumbnail.tsx';
-import type { PlaylistItem } from './playlist.ts';
+import type { LevelChoice, PlaylistItem } from './playlist.ts';
 import { updatedLabel } from './updated-label.ts';
 
 const SEARCH_DEBOUNCE_MS = 250;
@@ -16,7 +16,7 @@ export function LevelBrowser({
   onToggle,
 }: {
   playlist: readonly PlaylistItem[];
-  onToggle(item: PlaylistItem): void;
+  onToggle(level: LevelChoice): void;
 }) {
   const [typed, setTyped] = useState('');
   const [search, setSearch] = useState('');

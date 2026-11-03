@@ -26,13 +26,20 @@ export interface LevelListFilter {
   limit: number;
 }
 
+export interface LevelListPage {
+  /** At most `limit` levels; fewer when some rows no longer parse. */
+  records: LevelRecord[];
+  /** More rows follow this page, counting rows that don't parse, so paging never ends early. */
+  more: boolean;
+}
+
 /**
  * Where levels are kept. The game talks to this interface only, so another database means another
  * implementation of it. Ownership and visibility rules live in LevelService, above it.
  */
 export interface LevelStore {
   /** Visible levels: built-ins first, then the most recently updated. */
-  list(filter: LevelListFilter): Promise<LevelRecord[]>;
+  list(filter: LevelListFilter): Promise<LevelListPage>;
   /** Null when missing, or when its stored data no longer parses. */
   get(id: LevelId): Promise<LevelRecord | null>;
   countByAuthor(authorId: string): Promise<number>;
