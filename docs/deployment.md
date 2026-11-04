@@ -4,7 +4,7 @@ The game runs on [Railway](https://railway.com) as a single Docker container wit
 SQLite database. This guide covers the first deploy, everyday redeploys, and the problems the first
 deploy ran into, so nobody has to rediscover them.
 
-- Live URL: https://game-production-3791.up.railway.app
+- Live URL: https://bulletsandguns-game.up.railway.app
 - Railway project: `bulletsndguns`, environment `production`, service `game`
 - Region: US East (Virginia), `us-east4-eqdc4a`: the Railway region closest to Colombia (about
   80 ms from Barranquilla).
@@ -103,7 +103,7 @@ the `$env:_` line).
 ```powershell
 railway deployment list         # latest should be SUCCESS
 railway logs --deployment       # expect "BulletsNdGuns server listening on :3000"
-curl.exe -s https://game-production-3791.up.railway.app/healthz   # {"status":"ok"}
+curl.exe -s https://bulletsandguns-game.up.railway.app/healthz   # {"status":"ok"}
 ```
 
 Then open the URL in two separate browsers (or one normal and one private window). Sign in with an
@@ -113,11 +113,33 @@ should read about 80 ms from Colombia.
 These security checks should hold. Each command uses `curl.exe`, not PowerShell's `curl` alias:
 
 ```powershell
-$u = "https://game-production-3791.up.railway.app"
+$u = "https://bulletsandguns-game.up.railway.app"
 curl.exe -sI $u/ | Select-String "content-security-policy|strict-transport|x-frame"   # all three present
 curl.exe -s -o NUL -w "%{http_code}" -H "Origin: https://evil.example" "$u/socket.io/?EIO=4&transport=polling"   # 403
 curl.exe -s -X POST -H "Origin: https://evil.example" -H "content-type: application/json" -d "{}" $u/api/levels   # {"error":"forbidden"}
 ```
+
+## Changing the domain
+
+Renaming the Railway domain (or adding a custom one) updates `BETTER_AUTH_URL` in Railway's
+variables at once, but the running server keeps the URL it started with. Until it restarts, it
+refuses sockets from the new address (`403`), so players never get past the connecting screen.
+Redeploy right after any domain change:
+
+```powershell
+railway service redeploy --yes
+```
+
+Then check that the new address is accepted (expect `200`):
+
+```powershell
+$u = "https://<new domain>"
+curl.exe -s -o NUL -w "%{http_code}" -H "Origin: $u" "$u/socket.io/?EIO=4&transport=polling"
+```
+
+The old domain stops answering once renamed, so links to it break. A custom domain also needs
+the DNS records `railway domain <domain>` prints. If players should reach the game on both
+domains, list the extra one in `TRUSTED_ORIGINS`.
 
 ## Rolling back
 
@@ -167,6 +189,10 @@ The copy holds every account's email and password hash: keep it out of the repos
    for players entering through another edge, so the server now reads `X-Real-IP`
    (`REAL_IP_HEADER=x-real-ip`) instead of counting hops. Confirmed after the change: a new session recorded the
    player's own IP.
+7. **Renaming the domain broke sockets.** The domain was renamed in the dashboard to
+   `bulletsandguns-game.up.railway.app`. `BETTER_AUTH_URL` followed, but the running server still
+   allowed only the old origin, and refused sockets from the new one (`403`). A redeploy fixed it;
+   see "Changing the domain".
 
 ## Checking player IPs
 
