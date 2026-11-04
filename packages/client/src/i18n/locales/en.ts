@@ -198,8 +198,9 @@ export const en: Record<keyof typeof es, string> = {
   'lobby.leave': 'LEAVE',
   'dialog.close': 'CLOSE',
   'howToPlay.title': 'How to play',
-  'howToPlay.move': 'Use the <key>W</key>, <key>A</key>, <key>S</key>, <key>D</key> keys to move.',
-  'howToPlay.shoot': 'Press <key>space</key> to shoot.',
+  'howToPlay.move':
+    'Use the <key>W</key>, <key>A</key>, <key>S</key>, <key>D</key> keys or the arrow keys to move.',
+  'howToPlay.shoot': 'Press <key>space</key> or left-click to shoot.',
   'howToPlay.enemies': 'Take out every <red>enemy</red>.',
   'howToPlay.coins': 'Collect every <gold>coin</gold>.',
   'credits.title': 'Credits',

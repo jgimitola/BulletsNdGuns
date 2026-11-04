@@ -196,8 +196,8 @@ export const es = {
   'dialog.close': 'CERRAR',
   'howToPlay.title': '¿Cómo jugar?',
   'howToPlay.move':
-    'Utilice las teclas <key>W</key>, <key>A</key>, <key>S</key>, <key>D</key> para moverse.',
-  'howToPlay.shoot': 'Presione <key>espacio</key> para disparar.',
+    'Utilice las teclas <key>W</key>, <key>A</key>, <key>S</key>, <key>D</key> o las flechas para moverse.',
+  'howToPlay.shoot': 'Presione <key>espacio</key> o haga clic izquierdo para disparar.',
   'howToPlay.enemies': 'Elimine todos los <red>enemigos</red>.',
   'howToPlay.coins': 'Recolecte todas las <gold>monedas</gold>.',
   'credits.title': 'Créditos',
