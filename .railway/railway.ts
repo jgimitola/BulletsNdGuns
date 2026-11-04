@@ -31,8 +31,10 @@ export default defineRailway(() => {
       BETTER_AUTH_SECRET: preserve(),
       // Railway fills in the service's generated domain.
       BETTER_AUTH_URL: 'https://${{RAILWAY_PUBLIC_DOMAIN}}',
-      // Railway's edge proxy sits in front of the server: one hop to trust for the player's IP.
-      TRUST_PROXY: '1',
+      // Two Railway proxies sit in front of the server, and more for players entering through another
+      // edge, so a hop count can't be trusted. The edge overwrites X-Real-IP with the player's
+      // address on every request (checked 2026-11-04: a forged one never reached the server).
+      REAL_IP_HEADER: 'x-real-ip',
     },
   });
 

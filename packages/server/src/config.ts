@@ -16,6 +16,11 @@ export interface ServerConfig {
    * reverse proxy. Decides which address rate limits count a player under.
    */
   trustProxy: boolean | number;
+  /**
+   * Header a proxy in front of the server sets to the player's address (Railway: `x-real-ip`), or
+   * null to go by `trustProxy`. Only safe when that proxy overwrites whatever the player sent.
+   */
+  realIpHeader: string | null;
   /** better-auth's request limits; off only for local development. */
   authRateLimit: boolean;
 }
@@ -29,6 +34,8 @@ const DEFAULT_DATABASE_PATH = fileURLToPath(new URL('../../../data/bng.sqlite', 
  */
 const DEV_AUTH_SECRET = 'bng-dev-only-7f3c9a1e5b2d8046c1f9e3a7d5b0c2e4';
 const DEV_TRUSTED_ORIGINS = ['http://localhost:5173'];
+/** An HTTP header name (RFC 9110 token), e.g. `X-Real-IP`. */
+const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 
 /** Empty strings count as unset, as a blank line in an env file means. */
 const optional = z
@@ -46,6 +53,7 @@ const envSchema = z
     BETTER_AUTH_URL: optional,
     TRUSTED_ORIGINS: optional,
     TRUST_PROXY: optional,
+    REAL_IP_HEADER: optional,
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'development' && !env.BETTER_AUTH_SECRET) {
@@ -59,6 +67,9 @@ const envSchema = z
         code: 'custom',
         message: 'BETTER_AUTH_URL (the public URL players open) is required in production',
       });
+    }
+    if (env.REAL_IP_HEADER && !HEADER_NAME.test(env.REAL_IP_HEADER.trim())) {
+      ctx.addIssue({ code: 'custom', message: 'REAL_IP_HEADER must be a header name' });
     }
   })
   .transform((env): ServerConfig => {
@@ -80,6 +91,7 @@ const envSchema = z
           ? DEV_TRUSTED_ORIGINS
           : [],
       trustProxy: parseTrustProxy(env.TRUST_PROXY),
+      realIpHeader: env.REAL_IP_HEADER?.trim().toLowerCase() || null,
       authRateLimit: !development,
     };
   });

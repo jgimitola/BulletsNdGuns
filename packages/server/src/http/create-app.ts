@@ -19,13 +19,17 @@ export interface AppDeps {
 }
 
 /**
- * better-auth rate-limits by the address in CLIENT_IP_HEADER. Set from Express's view of the client
- * (the socket, or the proxy chain `trust proxy` allows), so a player can't pick their own bucket.
+ * better-auth rate-limits by the address in CLIENT_IP_HEADER, so a player must not pick their own
+ * bucket. It comes from the configured proxy header when there is one (the proxy overwrites it),
+ * else from Express's view of the client: the socket, or the proxy chain `trust proxy` allows.
  */
-const clientIp: RequestHandler = (req, _res, next) => {
-  req.headers[CLIENT_IP_HEADER] = req.ip ?? '';
-  next();
-};
+function clientIp(realIpHeader: string | null): RequestHandler {
+  return (req, _res, next) => {
+    const fromProxy = realIpHeader ? req.get(realIpHeader)?.split(',')[0]?.trim() : undefined;
+    req.headers[CLIENT_IP_HEADER] = fromProxy || req.ip || '';
+    next();
+  };
+}
 
 /**
  * Level writes act with the session cookie, so a page on another site must not be able to send
@@ -40,7 +44,10 @@ function sameOriginWrites(allowed: ReadonlySet<string>): RequestHandler {
 }
 
 export function createApp(
-  config: Pick<ServerConfig, 'clientDist' | 'trustProxy' | 'authUrl' | 'trustedOrigins'>,
+  config: Pick<
+    ServerConfig,
+    'clientDist' | 'trustProxy' | 'realIpHeader' | 'authUrl' | 'trustedOrigins'
+  >,
   deps: AppDeps,
 ): express.Express {
   const app = express();
@@ -59,7 +66,7 @@ export function createApp(
     '/api/auth/*splat',
     // Reads the body as text (any type) up to the limit, answering 413 past it.
     express.text({ type: () => true, limit: AUTH_BODY_LIMIT }),
-    clientIp,
+    clientIp(config.realIpHeader),
     deps.authHandler,
   );
   app.use('/api/levels', sameOriginWrites(allowedOrigins(config)), deps.levelsRouter);

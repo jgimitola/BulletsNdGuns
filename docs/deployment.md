@@ -42,7 +42,7 @@ replaces `railway.toml` / `railway.json`, which Railway stops reading after 2026
 | `DATABASE_PATH` | `/data/bng.sqlite` | Dockerfile |
 | `PORT` | `3000` | `.railway/railway.ts` (Railway would otherwise inject `8080`) |
 | `BETTER_AUTH_URL` | `https://${{RAILWAY_PUBLIC_DOMAIN}}` (resolves to the live URL) | `.railway/railway.ts` |
-| `TRUST_PROXY` | `1` (Railway's edge proxy is the one hop in front of the server) | `.railway/railway.ts` |
+| `REAL_IP_HEADER` | `x-real-ip` (Railway's edge overwrites it with the player's address) | `.railway/railway.ts` |
 | `BETTER_AUTH_SECRET` | 32 random bytes | CLI, once (never in a file) |
 
 `BETTER_AUTH_SECRET` signs every session: anyone who has it can sign in as any player. It only
@@ -158,15 +158,24 @@ The copy holds every account's email and password hash: keep it out of the repos
 5. **Railway warned that `railway.toml` is deprecated (works until 2026-12-01).** Replaced it with
    `.railway/railway.ts`, which also covers the volume, region and variables.
 
-## Not yet checked
+6. **Every player was rate-limited as the same address.** With `TRUST_PROXY=1`, sessions recorded
+   `152.233.23.194`, a Railway edge server in Miami, instead of the player's IP. A temporary log of
+   the request headers showed the chain: player, then the Miami edge (`152.233.23.193`/`.194`),
+   then an internal proxy (`100.64.x.x`). `X-Forwarded-For` was `<player>, <edge>`, so one trusted
+   hop picked the edge. `X-Real-IP` held the player's address, and forged `X-Forwarded-For` and
+   `X-Real-IP` headers never reached the server: the edge overwrites both. The hop count may differ
+   for players entering through another edge, so the server now reads `X-Real-IP`
+   (`REAL_IP_HEADER=x-real-ip`) instead of counting hops.
 
-- **Player IPs behind the proxy.** `TRUST_PROXY=1` assumes Railway's edge is the only proxy in front
-  of the server. If that is wrong, every player shares one rate-limit bucket, or players could spoof
-  their address. To confirm, sign in on the live site, then compare the `ipAddress` of the newest
-  row in the `session` table with your public IP (for example from `curl.exe https://api.ipify.org`):
+## Checking player IPs
 
-  ```powershell
-  railway ssh -- node -e "const {DatabaseSync}=require('node:sqlite');console.log(new DatabaseSync('/data/bng.sqlite',{readOnly:true}).prepare('select ipAddress from session order by createdAt desc limit 1').get())"
-  ```
+Sign in on the live site, then compare the `ipAddress` of the newest session with your public IP
+(for example from `curl.exe https://api.ipify.org`):
 
-  They should match. A Railway address (10.x, 100.x) means the hop count is wrong.
+```powershell
+railway ssh -- node -e "const {DatabaseSync}=require('node:sqlite');console.log(new DatabaseSync('/data/bng.sqlite',{readOnly:true}).prepare('select ipAddress from session order by createdAt desc limit 1').get())"
+```
+
+They should match. A `152.233.x.x` or `100.64.x.x` address means the server is reading a proxy's
+address again. Railway's own request log (`railway logs --http --json`, field `srcIp`) shows what
+the edge saw, for comparison.

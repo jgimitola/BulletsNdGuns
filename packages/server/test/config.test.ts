@@ -17,6 +17,7 @@ describe('loadConfig', () => {
     expect(config.trustedOrigins).toEqual(['http://localhost:5173']);
     expect(config.authSecret.length).toBeGreaterThanOrEqual(32);
     expect(config.trustProxy).toBe(false);
+    expect(config.realIpHeader).toBeNull();
     expect(config.authRateLimit).toBe(false);
   });
 
@@ -60,5 +61,11 @@ describe('loadConfig', () => {
     expect(loadConfig({ ...DEV, TRUST_PROXY: 'true' }).trustProxy).toBe(true);
     expect(loadConfig({ ...DEV, TRUST_PROXY: 'false' }).trustProxy).toBe(false);
     expect(loadConfig({ ...DEV, TRUST_PROXY: '2' }).trustProxy).toBe(2);
+  });
+
+  test('REAL_IP_HEADER names the header a proxy puts the player address in', () => {
+    expect(loadConfig({ ...DEV, REAL_IP_HEADER: ' X-Real-IP ' }).realIpHeader).toBe('x-real-ip');
+    expect(loadConfig({ ...DEV, REAL_IP_HEADER: '' }).realIpHeader).toBeNull();
+    expect(() => loadConfig({ ...DEV, REAL_IP_HEADER: 'x real ip' })).toThrow(/REAL_IP_HEADER/);
   });
 });

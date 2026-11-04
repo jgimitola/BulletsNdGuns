@@ -50,6 +50,7 @@ beforeAll(async () => {
       {
         clientDist: dist,
         trustProxy: false,
+        realIpHeader: null,
         authUrl: 'http://localhost:3000',
         trustedOrigins: [],
       },

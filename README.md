@@ -49,6 +49,7 @@ Production: `npm run build && npm start`, with this environment:
 - `BETTER_AUTH_URL`: the public URL players open, e.g. `https://bng.example.com`. Required in production (default `http://localhost:$PORT` elsewhere).
 - `DATABASE_PATH`: the SQLite file accounts live in (default `data/bng.sqlite`, git-ignored).
 - `TRUST_PROXY`: `false` (default) when players connect straight to the server; the number of proxies in front of it (or `true`) behind a reverse proxy. Rate limits count requests per client address, which this decides.
+- `REAL_IP_HEADER`: the header a proxy in front of the server overwrites with the player's address (`x-real-ip` on Railway). When set, it decides the address instead of `TRUST_PROXY`; never set it without such a proxy, or players could choose their own address.
 - `TRUSTED_ORIGINS`: comma-separated extra origins allowed to call the auth API, open sockets and write levels (none by default; the origin of `BETTER_AUTH_URL` is always allowed).
 - `PORT` (default 3000) and `CLIENT_DIST` (default `packages/client/dist`).
 
