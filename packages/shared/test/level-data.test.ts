@@ -88,3 +88,35 @@ test('levelDataSchema refuses a huge coins array without accepting it', () => {
   expect(levelDataSchema.safeParse({ ...empty(), coins }).success).toBe(false);
   expect(parseLevelData({ ...empty(), coins })).toBeNull();
 });
+
+const withTile = (data: LevelData, col: number, row: number, id: number): LevelData => {
+  const tiles = data.tiles.slice();
+  tiles[row * 25 + col] = id;
+  return { ...data, tiles };
+};
+
+test('parseLevelData turns the coin and ammo look-alike tiles into real pickups', () => {
+  // Tiles 5 and 6 of level-tiles.png are copies of the ammo and coin sprites: placed as tiles they
+  // were solid blocks nobody could collect. Each becomes a pickup anchored like the editor's.
+  let raw = withTile(empty(), 3, 10, 6);
+  raw = withTile(raw, 7, 2, 5);
+  const parsed = parseLevelData(raw)!;
+  expect(parsed.tiles.every((t) => t === 0)).toBe(true);
+  expect(parsed.coins).toEqual([
+    { x: 704, y: 540 },
+    { x: 96, y: 330 },
+  ]);
+  expect(parsed.ammo).toEqual([{ x: 224, y: 90 }]);
+});
+
+test('look-alike tiles never repeat a pickup or exceed the limit', () => {
+  // A coin tile on the cell of an existing coin (anchor 704, 540 is col 22, row 17).
+  const duplicate = parseLevelData(withTile(empty(), 22, 17, 6))!;
+  expect(duplicate.coins).toEqual([{ x: 704, y: 540 }]);
+  expect(duplicate.tiles[17 * 25 + 22]).toBe(0);
+
+  const full = { ...empty(), coins: Array.from({ length: 100 }, (_, i) => ({ x: i, y: 0 })) };
+  const capped = parseLevelData(withTile(full, 0, 0, 6))!;
+  expect(capped.coins).toHaveLength(100);
+  expect(capped.tiles[0]).toBe(0);
+});

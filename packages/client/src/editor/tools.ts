@@ -1,4 +1,4 @@
-import { TILE_KINDS } from '@bng/shared';
+import { AMMO_LOOKALIKE_TILE, COIN_LOOKALIKE_TILE, TILE_KINDS } from '@bng/shared';
 
 export type ObjectTool = 'coin' | 'ammo' | 'portal' | 'spawnLeft' | 'spawnRight';
 
@@ -13,9 +13,14 @@ const OBJECT_KEYS: readonly [ObjectTool, string][] = [
   ['spawnRight', 'r'],
 ];
 
-/** Every editor tool, in toolbar order: the tiles 1..8, the objects, then the eraser. */
+/** The tiles offered as blocks: all but the look-alikes of the ammo and coin pickups. */
+const BLOCK_TILES = Array.from({ length: TILE_KINDS }, (_, i) => i + 1).filter(
+  (id) => id !== AMMO_LOOKALIKE_TILE && id !== COIN_LOOKALIKE_TILE,
+);
+
+/** Every editor tool, in toolbar order: the block tiles, the objects, then the eraser. */
 export const TOOLS: readonly Tool[] = [
-  ...Array.from({ length: TILE_KINDS }, (_, i): Tool => ({ kind: 'tile', id: i + 1 })),
+  ...BLOCK_TILES.map((id): Tool => ({ kind: 'tile', id })),
   ...OBJECT_KEYS.map(([object]): Tool => ({ kind: 'object', object })),
   { kind: 'eraser' },
 ];
@@ -28,8 +33,8 @@ export function toolKey(tool: Tool): string {
 }
 
 /**
- * The tool a key picks: '1'..'8' tiles, '9' coin, '0' ammo, 'p' portal, 'l' / 'r' spawns,
- * 'e' eraser. Case-insensitive; null for any other key.
+ * The tool a key picks: '1'..'8' block tiles (not '5' or '6'), '9' coin, '0' ammo, 'p' portal,
+ * 'l' / 'r' spawns, 'e' eraser. Case-insensitive; null for any other key.
  */
 export function toolForKey(key: string): Tool | null {
   const lower = key.toLowerCase();

@@ -59,16 +59,52 @@ const tilesSchema = z
   .length(TILE_COUNT)
   .pipe(z.array(z.int().min(0).max(TILE_KINDS)));
 
-/** `null` spawns and portal are the missing pieces of a draft. */
-export const levelDataSchema = z.object({
-  cols: z.literal(LEVEL_COLS),
-  rows: z.literal(LEVEL_ROWS),
-  tiles: tilesSchema,
-  spawns: z.object({ left: positionSchema.nullable(), right: positionSchema.nullable() }),
-  portal: positionSchema.nullable(),
-  coins: positionsSchema,
-  ammo: positionsSchema,
-}) satisfies z.ZodType<LevelData>;
+/**
+ * Tiles 5 and 6 of `level-tiles.png` are copies of the ammo and coin sprites, left over from the
+ * original tileset. No level uses them as blocks; placed in the editor they looked like pickups
+ * but stayed solid and could not be collected.
+ */
+export const AMMO_LOOKALIKE_TILE = 5,
+  COIN_LOOKALIKE_TILE = 6;
+
+/** A pickup's anchor for a cell: its bottom-left corner, as the classic levels place them. */
+export function pickupAnchor(col: number, row: number): Vec2 {
+  return { x: col * TILE_WIDTH, y: (row + 1) * TILE_HEIGHT };
+}
+
+/**
+ * Replaces every look-alike tile with the pickup it shows, at that cell's anchor. A pickup already
+ * there, or one past `MAX_PICKUPS_PER_KIND`, is not added; the tile is cleared either way.
+ */
+function lookalikeTilesToPickups(data: LevelData): LevelData {
+  const coins = data.coins.slice(),
+    ammo = data.ammo.slice();
+  const tiles = data.tiles.map((id, index) => {
+    const list = id === COIN_LOOKALIKE_TILE ? coins : id === AMMO_LOOKALIKE_TILE ? ammo : null;
+    if (!list) return id;
+    const anchor = pickupAnchor(index % data.cols, Math.floor(index / data.cols));
+    const taken = list.some((p) => p.x === anchor.x && p.y === anchor.y);
+    if (!taken && list.length < MAX_PICKUPS_PER_KIND) list.push(anchor);
+    return 0;
+  });
+  return { ...data, tiles, coins, ammo };
+}
+
+/**
+ * `null` spawns and portal are the missing pieces of a draft. Look-alike tiles become pickups, so
+ * levels saved with them are repaired wherever they are read or written.
+ */
+export const levelDataSchema = z
+  .object({
+    cols: z.literal(LEVEL_COLS),
+    rows: z.literal(LEVEL_ROWS),
+    tiles: tilesSchema,
+    spawns: z.object({ left: positionSchema.nullable(), right: positionSchema.nullable() }),
+    portal: positionSchema.nullable(),
+    coins: positionsSchema,
+    ammo: positionsSchema,
+  })
+  .transform(lookalikeTilesToPickups) satisfies z.ZodType<LevelData>;
 
 /** Validates untrusted level data. Returns a fresh LevelData, or null. Never throws. */
 export function parseLevelData(raw: unknown): LevelData | null {

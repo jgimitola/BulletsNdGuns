@@ -4,6 +4,7 @@ import {
   LEVEL_COLS,
   LEVEL_ROWS,
   MAX_PICKUPS_PER_KIND,
+  pickupAnchor,
   spawnFacing,
   spriteCentre,
   TILE_HEIGHT,
@@ -54,7 +55,7 @@ export function snapObject(object: ObjectTool, cell: Cell): Vec2 {
   switch (object) {
     case 'coin':
     case 'ammo':
-      return { x: left, y: floor };
+      return pickupAnchor(cell.col, cell.row);
     case 'portal':
       return { x: left + TILE_WIDTH, y: floor };
     case 'spawnLeft':
