@@ -9,7 +9,7 @@ export const partial = 'game';
 
 export default defineRailway(() => {
   // The SQLite file (accounts and levels). The Dockerfile points DATABASE_PATH here.
-  const data = volume('game-data', { region: REGION });
+  const data = volume('game-data', { region: REGION, sizeMB: 500 });
 
   const game = service('game', {
     build: { builder: 'DOCKERFILE', dockerfilePath: 'Dockerfile' },
