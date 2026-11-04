@@ -165,7 +165,8 @@ The copy holds every account's email and password hash: keep it out of the repos
    hop picked the edge. `X-Real-IP` held the player's address, and forged `X-Forwarded-For` and
    `X-Real-IP` headers never reached the server: the edge overwrites both. The hop count may differ
    for players entering through another edge, so the server now reads `X-Real-IP`
-   (`REAL_IP_HEADER=x-real-ip`) instead of counting hops.
+   (`REAL_IP_HEADER=x-real-ip`) instead of counting hops. Confirmed after the change: a new session recorded the
+   player's own IP.
 
 ## Checking player IPs
 
